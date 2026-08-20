@@ -76,7 +76,7 @@ class Mover {
     }
     const dv = DIRS[this.dir];
     if (!isOpen(this.grid, this.r + dv.dr, this.c + dv.dc)) {
-      this.dir = OPPOSITE[this.dir];
+      this.dir = "none"; // hit a wall: stop and wait for a new direction
     }
   }
 }

@@ -24,7 +24,7 @@ Named **PERU MAN**.
 - `js/config.js` — CELL=32, COLS/ROWS=15, MAZE grid (`#` wall, `.` pellet, `P` power pill, `M` player start, `G` turkey start), DEN (r7,c7), TUNE, TURKEYS[], SCATTER_TARGETS, PHASE_DURATIONS
 - `js/utils.js` — DIRS, DIR_NAMES, OPPOSITE, centerOf, isWall, isOpen, clamp, bfsDistances
 - `js/audio.js` — AudioFX (Web Audio SFX, created on first user gesture; M to mute)
-- `js/sprites.js` — drawPlayer (BR flag), drawTurkey, drawEyes, drawCanvaPill (TODO see below), drawPellet, drawMiniFlag, shadeHex
+- `js/sprites.js` — drawPlayer (BR flag), drawTurkey, drawEyes, drawCanvaPill (official Canva wordmark, "C" fallback), drawPellet, drawMiniFlag, shadeHex
 - `js/pacman.js` — Mover base (grid move; on wall hit sets dir="none" so player stops, does NOT reverse) + Player
 - `js/ghost.js` — Turkey extends Mover (AI: scatter/chase BFS + flee when frightened)
 - `js/game.js` — Game state machine, collisions, scoring, rendering
@@ -73,9 +73,16 @@ white→lavender glowing pill disc (`#ffffff`/`#efeaff`/`#d9c9ff`) with a light 
   top/bottom of ring = teal end of gradient. (My model can't view images; use pixel probes.)
 - All 3 tests pass; `node --check` clean.
 
-## Idea backlog (optional, not requested)
-- Could swap the "C" for the full "Canva" wordmark (embed the fetched SVG as data-URI Image in
-  main.js + drawImage) — decided against: wordmark is ~10px tall at pill size, "C" reads better.
-- Could add a small "CANVA" text under the pill.
+## Done (post-reboot: full Canva wordmark pill)
+User asked for the full Canva wordmark (instead of just the "C"). `sprites.js` now embeds the
+official wordmark SVG (fetched from Wikipedia, verified against the source) as
+`CANVA_WORDMARK_SVG`, builds a data-URI `Image` at load (guarded by `typeof Image` so headless
+Node tests stay safe — falls back to the hand-drawn gradient "C" until/ unless the image loads),
+and `drawCanvaPill` drawImage's it scaled to fit the glowing disc (w = 1.95r, aspect 80:30).
+Verified: data-URI round-trips byte-for-byte to the embedded SVG; brand colors present
+(#6420FF/#7D2AE7/#00C4CC); all 3 tests pass; syntax clean.
+If the wordmark ever needs re-fetching:
+`curl -sL https://upload.wikimedia.org/wikipedia/en/b/bb/Canva_Logo.svg` (strip width/height attrs, keep viewBox).
 
-Note on git: don't commit secrets; this file is untracked by design.
+## Idea backlog (optional, not requested)
+- Could add a small "CANVA" text under the pill (redundant now that the wordmark is shown).

@@ -1,6 +1,6 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-20.
+> Read this first to pick up where work left off. Last updated: 2026-08-20 (post-reboot).
 > Keep this file updated as you go so a future session can resume.
 
 ## What this is
@@ -57,19 +57,25 @@ Push works via `gh auth setup-git` (HTTPS creds not otherwise configured). `gh` 
 - Full game built & live (player BR flag, 4 turkey ghosts w/ personalities, Web Audio SFX, 3 lives,
   scatter/chase phases, level speed-ups, score/best, floats, title/ready/dying/levelup/gameover, mobile).
 - All JS passes `node --check`; all 3 tests pass.
-- Commits: e7c0f1a (initial), 983ccdc (player stops at walls), 864fd47 (frightened turkeys flee player).
+- Commits: e7c0f1a (initial), 983ccdc (player stops at walls), 864fd47 (frightened turkeys flee player),
+  e741898 (headless tests + handover).
   Flee: picks open dir maximizing BFS distance from player; may reverse; ties random + ~4% twitch.
   Verified: flee 22.5x more often than approach, approach only ~4%.
 
-## Next action (NOT done yet)
-**Replace the placeholder `drawCanvaPill()` in `js/sprites.js`** with the real Canva logo/wordmark.
-- Fetched real SVG (https://upload.wikimedia.org/wikipedia/en/b/bb/Canva_Logo.svg): it's a full
-  "Canva" wordmark (viewBox 80x30, uses a <mask> big path + <pattern> fill).
-- Real brand colors inside that SVG: base/pattern rect `#7D2AE7` (purple), radial gradients
-  `#6420FF` (purple, several) and `#00C4CC` (teal/cyan, two). "Canva blue" = teal `#00C4CC`,
-  with purple `#6420FF`/`#7D2AE7` dominating.
-- Plan: recreate a compact canvas version of the Canva mark in Canva colors (purple→teal).
-  (Alternative: embed the SVG as a data-URI Image loaded in main.js and drawImage scaled into the pill cell.)
-- Then run tests, update this file, commit, push (Pages auto-refreshes).
+## Done (post-reboot pickup)
+**Real Canva logo power pill** — `drawCanvaPill()` in `js/sprites.js` now draws a Canva "C" mark
+(open on the right, like the real brush-C) stroked with a linear gradient in the true brand
+colors from the official SVG (https://upload.wikimedia.org/wikipedia/en/b/bb/Canva_Logo.svg):
+`#6420FF`/`#7D2AE7` (purple, left) → `#00C4CC` (teal "Canva blue", right), on a soft
+white→lavender glowing pill disc (`#ffffff`/`#efeaff`/`#d9c9ff`) with a light purple rim.
+- Verified by rendering an equivalent SVG to PNG with ImageMagick (`convert ...svg ppm:-`) and
+  pixel-probing: left ring = purple, right-of-center = open gap (white disc shows through),
+  top/bottom of ring = teal end of gradient. (My model can't view images; use pixel probes.)
+- All 3 tests pass; `node --check` clean.
+
+## Idea backlog (optional, not requested)
+- Could swap the "C" for the full "Canva" wordmark (embed the fetched SVG as data-URI Image in
+  main.js + drawImage) — decided against: wordmark is ~10px tall at pill size, "C" reads better.
+- Could add a small "CANVA" text under the pill.
 
 Note on git: don't commit secrets; this file is untracked by design.

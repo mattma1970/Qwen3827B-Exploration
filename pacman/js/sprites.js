@@ -146,29 +146,41 @@ function drawEyes(c, x, y) {
   }
 }
 
-// Power pill: Canva logo - red circle with white brush swoosh, gently pulsing
+// Power pill: the Canva logo. A bold "C" mark in Canva's brand gradient
+// (purple #6420FF/#7D2AE7 -> teal #00C4CC) on a soft glowing pill disc.
 function drawCanvaPill(c, x, y, r, t) {
   const s = 1 + 0.1 * Math.sin((t || 0) * 5);
   c.save();
   c.translate(x, y);
   c.scale(s, s);
-  const g = c.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r * 1.2);
-  g.addColorStop(0, "#ff9966");
-  g.addColorStop(1, "#e63926");
+
+  // soft glowing "pill" disc, brand-tinted at the rim
+  const disc = c.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.1, 0, 0, r * 1.15);
+  disc.addColorStop(0, "#ffffff");
+  disc.addColorStop(0.7, "#efeaff");
+  disc.addColorStop(1, "#d9c9ff");
   c.beginPath();
-  c.arc(0, 0, r * 1.05, 0, Math.PI * 2);
-  c.fillStyle = g;
+  c.arc(0, 0, r * 1.12, 0, Math.PI * 2);
+  c.fillStyle = disc;
   c.fill();
-  c.strokeStyle = "#fff";
-  c.lineWidth = r * 0.32;
+  c.lineWidth = r * 0.08;
+  c.strokeStyle = "rgba(100,32,255,0.5)";
+  c.stroke();
+
+  // the Canva "C": a bold brush C, open on the right, brand purple -> teal
+  const R = r * 0.62;
+  const gap = 0.72; // radians of opening on either side of the right
+  const grad = c.createLinearGradient(-R, 0, R, 0);
+  grad.addColorStop(0, "#6420FF");
+  grad.addColorStop(0.5, "#7D2AE7");
+  grad.addColorStop(1, "#00C4CC");
+  c.strokeStyle = grad;
+  c.lineWidth = r * 0.36;
   c.lineCap = "round";
   c.beginPath();
-  c.arc(0, r * 0.12, r * 0.55, Math.PI * 1.08, Math.PI * 1.92);
+  c.arc(0, 0, R, gap, Math.PI * 2 - gap); // sweep the long way => C open at right
   c.stroke();
-  c.beginPath();
-  c.arc(r * 0.58, -r * 0.3, r * 0.13, 0, Math.PI * 2);
-  c.fillStyle = "#fff";
-  c.fill();
+
   c.restore();
 }
 

@@ -68,11 +68,15 @@ class Mover {
     }
     if (this.want !== "none") {
       const w = this.want;
-      if (w !== this.dir && w !== OPPOSITE[this.dir] &&
-          isOpen(this.grid, this.r + DIRS[w].dr, this.c + DIRS[w].dc)) {
+      if (w === this.dir) {
+        this.want = "none"; // already heading that way
+      } else if (w !== OPPOSITE[this.dir] &&
+                 isOpen(this.grid, this.r + DIRS[w].dr, this.c + DIRS[w].dc)) {
         this.dir = w;
+        this.want = "none";
       }
-      this.want = "none";
+      // otherwise keep buffering until a cell lets us honor it (or a wall
+      // stop lets us reverse). New keypresses simply overwrite this value.
     }
     const dv = DIRS[this.dir];
     if (!isOpen(this.grid, this.r + dv.dr, this.c + dv.dc)) {

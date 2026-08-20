@@ -40,6 +40,7 @@ Headless tests use `node` + `vm` to load the JS in order with a canvas-2D-contex
 - pacman/tests/peru-smoke.js   — random-walk sanity (maze reachable, state transitions, no exceptions)
 - pacman/tests/peru-scripted.js — pill -> fright -> gobble -> den respawn -> levelup
 - pacman/tests/peru-flee.js    — frightened turkey steers away (BFS), fan-out tie-break
+- pacman/tests/peru-buffer.js  — keypress buffering: early turns survive blocked cells; opposite key reverses at dead ends
 
 Quick loop after any JS edit (run from the repo root /home/mattma/Qwen3827B-Exploration):
 ```
@@ -47,6 +48,7 @@ node --check pacman/js/<file>.js          # syntax
 node pacman/tests/peru-smoke.js           # sanity
 node pacman/tests/peru-scripted.js        # pill/fright/gobble/levelup
 node pacman/tests/peru-flee.js            # flee direction (BFS)
+node pacman/tests/peru-buffer.js          # keypress buffering / dead-end reverse
 ```
 (Tests reference the absolute js path, so location is fine; if you move the repo,
 update the `dir =` line at the top of each test.)
@@ -83,6 +85,17 @@ Verified: data-URI round-trips byte-for-byte to the embedded SVG; brand colors p
 (#6420FF/#7D2AE7/#00C4CC); all 3 tests pass; syntax clean.
 If the wordmark ever needs re-fetching:
 `curl -sL https://upload.wikimedia.org/wikipedia/en/b/bb/Canva_Logo.svg` (strip width/height attrs, keep viewBox).
+
+## Done (post-reboot: arrow keys intermittently not registering)
+User reported arrow keys "intermittantly not working" (suspected key buffering). Root cause:
+`Mover.decide()` (js/pacman.js) discarded the buffered `want` direction whenever it could not be
+applied at the moment it was checked — so pressing a turn key even ~1 cell early (or pressing the
+OPPOSITE direction, e.g. reversing at a dead end) silently ate the keypress. Fix (classic
+Pac-Man buffering): only consume `want` when it's applied or is a same-direction no-op; otherwise
+keep it until a cell lets it through (new keypresses just overwrite). Also restores dead-end
+reverse (buffered opposite key is honored once a wall stop makes dir="none"). Turkeys are unaffected
+(they override decide()). Regression test: pacman/tests/peru-buffer.js — fails 2/3 checks on the
+old code, passes on the fix; all 4 test suites pass.
 
 ## Idea backlog (optional, not requested)
 - Could add a small "CANVA" text under the pill (redundant now that the wordmark is shown).

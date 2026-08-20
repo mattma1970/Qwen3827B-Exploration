@@ -74,25 +74,42 @@ class Turkey extends Mover {
   }
 
   aiDir() {
-    let opts = DIR_NAMES.filter((d) =>
+    const open = DIR_NAMES.filter((d) =>
       isOpen(this.grid, this.r + DIRS[d].dr, this.c + DIRS[d].dc));
+    if (!open.length) return OPPOSITE[this.dir] || "right";
+
+    // frightened: RUN AWAY from the player. Pick the open direction that gets
+    // farthest from the player (they CAN reverse while panicking). Ties are
+    // broken at random so the flock spreads out, plus an occasional twitch.
+    if (this.fright) {
+      const p = this._player || { r: 0, c: 0 };
+      const dist = bfsDistances(this.grid, p.r, p.c);
+      let bd = -1;
+      let ties = [];
+      for (const d of open) {
+        const dd = dist[this.r + DIRS[d].dr][this.c + DIRS[d].dc];
+        if (dd > bd) { bd = dd; ties = [d]; }
+        else if (dd === bd) ties.push(d);
+      }
+      if (Math.random() < 0.3) return open[(Math.random() * open.length) | 0];
+      return ties[(Math.random() * ties.length) | 0];
+    }
+
+    // hunt: ghosts never reverse unless boxed in, then chase via BFS
+    let opts = open;
     if (this.dir !== "none") {
-      const noReversal = opts.filter((d) => d !== OPPOSITE[this.dir]);
+      const noReversal = open.filter((d) => d !== OPPOSITE[this.dir]);
       if (noReversal.length) opts = noReversal;
     }
     if (!opts.length) return OPPOSITE[this.dir] || "right";
 
-    // frightened: wander randomly
-    if (this.fright) return opts[(Math.random() * opts.length) | 0];
-
-    // hunt: follow BFS distance field toward its target cell
     const t = this.targetCell();
     const dist = bfsDistances(this.grid, t.r, t.c);
     let best = opts[0];
-    let bd = Infinity;
+    let b = Infinity;
     for (const d of opts) {
       const dd = dist[this.r + DIRS[d].dr][this.c + DIRS[d].dc];
-      if (dd < bd) { bd = dd; best = d; }
+      if (dd < b) { b = dd; best = d; }
     }
     return best;
   }

@@ -97,5 +97,27 @@ reverse (buffered opposite key is honored once a wall stop makes dir="none"). Tu
 (they override decide()). Regression test: pacman/tests/peru-buffer.js — fails 2/3 checks on the
 old code, passes on the fix; all 4 test suites pass.
 
+## Done (player = emoji-ified Rafa avatar)
+Web search confirmed there is NO off-the-shelf "emoji-fy an image" npm/PyPI package (only
+AI SaaS tools — makeemoji/openart/pixelbin — needing accounts/keys, and Replicate models).
+Chosen path: one-off local ImageMagick pipeline (IM 6.9, no OpenCV so no face-detect;
+source is a 400×400 headshot so center-crop is fine).
+- Source: `/home/mattma/documents/rafa.jpg` (NOT in repo).
+- Pipeline: `convert rafa.jpg -resize 256x256 -blur 0x4 -posterize 20 -colors 16 -alpha set
+  \( -size 256x256 xc:none -fill white -draw "circle 128,128 128,0" \) -compose DstIn -composite
+  -strip pacman/img/rafa_emoji.png`
+  IM6 gotcha: WITHOUT `-alpha set` on the palette (indexed) base, DstIn/CopyOpacity silently
+  produce a fully opaque result (verified via -alpha extract).
+- `js/sprites.js`: `rafaEmojiImg` loads `img/rafa_emoji.png` (guarded by `typeof Image`.
+  headless-safe). `drawPlayer` clips the mouth wedge then drawImage's the avatar inside it
+  (BR flag hand-drawn fallback until loaded — same pattern as the Canva wordmark).
+  `drawMiniFlag` (life icons) does the same. Title-screen bobber at game.js:374 picks it up
+  for free (calls drawPlayer).
+- Verified: all 4 test suites pass (paths updated to /home/mattma/repos/... after the repo
+  moved), plus a vm check that the image branch drawImage's at (-r,-r,2r,2r) for the player
+  and (x-r,y-r,2r,2r) for life icons.
+- `pacman/img/` was untracked; contains leftover `rafa.png`, `rafa_preview.png`, `framings.png`
+  from earlier attempts — candidate for cleanup.
+
 ## Idea backlog (optional, not requested)
 - Could add a small "CANVA" text under the pill (redundant now that the wordmark is shown).

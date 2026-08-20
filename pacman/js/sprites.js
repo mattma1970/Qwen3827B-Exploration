@@ -1,4 +1,5 @@
-// PERU MAN - all sprite drawing: BR-flag pacman, turkeys, Canva power pill, pellets.
+// PERU MAN - all sprite drawing: emoji-ified Rafa player (BR-flag fallback),
+// turkeys, Canva power pill, pellets.
 
 function shadeHex(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
@@ -8,7 +9,21 @@ function shadeHex(hex, amt) {
   return "rgb(" + r + "," + g + "," + b + ")";
 }
 
-// Pac-man shaped like the Brazilian flag (green + yellow diamond + blue circle)
+// Emoji-ified avatar of Rafa (img/rafa_emoji.png: rafa.jpg run through a local
+// ImageMagick pass -blur 0x4 -posterize 20 -colors 16 + circle mask). Loaded once
+// at boot; the player falls back to hand-drawn BR flag while it loads or when
+// Image is unavailable (headless tests).
+let rafaEmojiImg = null;
+if (typeof Image !== "undefined") {
+  rafaEmojiImg = new Image();
+  rafaEmojiImg.src = "img/rafa_emoji.png";
+}
+
+function rafaEmojiReady() {
+  return !!(rafaEmojiImg && rafaEmojiImg.complete && rafaEmojiImg.naturalWidth > 0);
+}
+
+// Pac-man face: the emoji avatar clipped to the mouth wedge (BR flag before load)
 function drawPlayer(c, x, y, r, mouth, facing) {
   const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[facing] || 0;
   c.save();
@@ -18,6 +33,14 @@ function drawPlayer(c, x, y, r, mouth, facing) {
   c.moveTo(0, 0);
   c.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
   c.closePath();
+  if (rafaEmojiReady()) {
+    c.save();
+    c.clip();
+    c.drawImage(rafaEmojiImg, -r, -r, r * 2, r * 2);
+    c.restore();
+    c.restore();
+    return;
+  }
   const g = c.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.15, 0, 0, r);
   g.addColorStop(0, "#2fd06b");
   g.addColorStop(1, "#009c3b");
@@ -223,12 +246,17 @@ function drawPellet(c, x, y) {
   c.fill();
 }
 
-// Life icon: mini Brazilian flag circle
+// Life icon: mini emoji avatar circle (BR flag before load)
 function drawMiniFlag(c, x, y, r) {
   c.save();
   c.beginPath();
   c.arc(x, y, r, 0, Math.PI * 2);
   c.clip();
+  if (rafaEmojiReady()) {
+    c.drawImage(rafaEmojiImg, x - r, y - r, r * 2, r * 2);
+    c.restore();
+    return;
+  }
   c.fillStyle = "#009c3b";
   c.fillRect(x - r, y - r, r * 2, r * 2);
   c.fillStyle = "#ffdf00";

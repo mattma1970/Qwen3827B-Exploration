@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const dir = "/home/mattma/Qwen3827B-Exploration/pacman/js";
+const dir = "/home/mattma/repos/Qwen3827B-Exploration/pacman/js";
 global.window = {};
 const sandbox = { window: global.window, console };
 vm.createContext(sandbox);

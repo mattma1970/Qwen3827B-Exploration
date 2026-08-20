@@ -58,7 +58,7 @@ Push works via `gh auth setup-git` (HTTPS creds not otherwise configured). `gh` 
   scatter/chase phases, level speed-ups, score/best, floats, title/ready/dying/levelup/gameover, mobile).
 - All JS passes `node --check`; all 3 tests pass.
 - Commits: e7c0f1a (initial), 983ccdc (player stops at walls), 864fd47 (frightened turkeys flee player),
-  e741898 (headless tests + handover).
+  e741898 (headless tests + handover), 66063da (real Canva logo power pill).
   Flee: picks open dir maximizing BFS distance from player; may reverse; ties random + ~4% twitch.
   Verified: flee 22.5x more often than approach, approach only ~4%.
 

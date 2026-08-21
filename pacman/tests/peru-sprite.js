@@ -311,6 +311,33 @@ const inCtx = (B, code) => vm.runInContext(code, B.sandbox);
   assert(inCtx(Q, "persistSlot('Rita') === false && SpriteData.Rita !== undefined"),
     "persistSlot swallows the quota error (returns false), SpriteData kept");
 
+  console.log("quota pre-check (M5):");
+  const QP = buildSandbox(makeStorage());
+  load(QP.sandbox);
+  QP.sandbox.__gradFake = gradFake;
+  assert(inCtx(QP, "typeof spriteUsage === 'function' && typeof spriteFits === 'function' && spriteUsage() === 0"),
+    "spriteUsage/spriteFits on the global, usage starts at 0");
+  inCtx(QP, "SpriteData.Rita = 'data:image/png;base64,' + ('X'.repeat(1000));");
+  assert(inCtx(QP, "spriteUsage() === (SPRITE_LS_PREFIX + 'Rita').length + SpriteData.Rita.length"),
+    "spriteUsage counts key + value bytes per entry");
+  assert(inCtx(QP, "spriteFits('nope', 'x') === false"), "spriteFits rejects unknown slots");
+  inCtx(QP, "SpriteData.player = 'data:image/png;base64,' + ('X'.repeat(SPRITE_QUOTA - 40));");
+  const rejQ = await inCtx(QP, "assignPhoto('pill', globalThis.__gradFake, { colors: 4 }).then(function(){ return null; }, function(e){ return String(e); })");
+  assert(rejQ.indexOf("quota") > -1, "assignPhoto rejects a different slot when over quota (got " + rejQ + ")");
+  assert(inCtx(QP, "Sprites.pill === null && SpriteData.pill === undefined && localStorage.getItem('peruman.sprite.pill') === null"),
+    "rejection assigns nothing (Sprites, SpriteData, storage untouched)");
+  const slotR = await inCtx(QP, "assignPhoto('player', globalThis.__gradFake, { colors: 4 })");
+  assert(slotR === "player" && inCtx(QP, "Sprites.player !== null && SpriteData.player.indexOf('data:image/png') === 0"),
+    "re-placing the SAME slot frees the old bytes (replacement fits)");
+  assert(inCtx(QP, "localStorage.getItem('peruman.sprite.player') === SpriteData.player && spriteFits('pill', 'y'.repeat(50)) === true"),
+    "replacement persisted and later slots fit again");
+  const NS = buildSandbox(undefined);
+  load(NS.sandbox);
+  NS.sandbox.__gradFake = gradFake;
+  const slotNS = await inCtx(NS, "assignPhoto('Dario', globalThis.__gradFake, { colors: 4 })");
+  assert(slotNS === "Dario" && inCtx(NS, "Sprites.ghosts.Dario !== null && persistSlot('Dario') === false"),
+    "no localStorage -> quota check skipped, in-memory assign still works");
+
   console.log(fail === 0 ? "ALL CHECKS PASSED" : fail + " CHECKS FAILED");
   process.exit(fail === 0 ? 0 : 1);
 })().catch(function (e) {

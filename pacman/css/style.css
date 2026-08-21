@@ -145,7 +145,8 @@ canvas { display: block; }
 .slot-zone:not(.filled) .slot-clear { display: none; }
 .slot-file { display: none; }
 
-.cp-foot { margin-top: 12px; }
+.cp-foot { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+.cp-usage { font-size: 11px; color: #6d74a8; }
 .cp-reset {
   background: none;
   border: 1px solid rgba(230, 57, 70, 0.6);

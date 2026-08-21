@@ -67,7 +67,6 @@ function initCustomize(game, canvasEl) {
   const grid = doc.createElement("div");
   grid.className = "cp-grid";
 
-  // toast (M5 polishes this: per-slot error detail + styling pass)
   const toastEl = doc.createElement("div");
   toastEl.className = "toast";
   let toastTimer = null;
@@ -101,8 +100,17 @@ function initCustomize(game, canvasEl) {
     drawPrev(slot);
   }
 
+  function fmtBytes(n) {
+    return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.ceil(n / 1024) + " kB";
+  }
+
+  function updateUsage() {
+    usageEl.textContent = "usando " + fmtBytes(spriteUsage()) + " de " + fmtBytes(SPRITE_QUOTA);
+  }
+
   function refreshAll() {
     for (const s of slotList()) updateZone(s);
+    updateUsage();
   }
 
   function handleDrop(slot, f) {
@@ -111,8 +119,10 @@ function initCustomize(game, canvasEl) {
     assignToSlot(slot, f).then(function (name) {
       updateZone(name);
       toast("foto aplicada em " + slotLabel(name));
-    }, function () {
-      toast("n\u00e3o deu para ler essa imagem");
+    }, function (err) {
+      toast(String(err).indexOf("quota") > -1
+        ? "armazenamento cheio \u2014 foto muito grande"
+        : "n\u00e3o deu para ler essa imagem");
     });
   }
 
@@ -181,6 +191,8 @@ function initCustomize(game, canvasEl) {
 
   const foot = doc.createElement("div");
   foot.className = "cp-foot";
+  const usageEl = doc.createElement("div");
+  usageEl.className = "cp-usage";
   const resetBtn = doc.createElement("button");
   resetBtn.className = "cp-reset";
   resetBtn.textContent = "restaurar padr\u00f5es";
@@ -191,6 +203,7 @@ function initCustomize(game, canvasEl) {
     refreshAll();
     toast("todos os slots restaurados");
   });
+  foot.appendChild(usageEl);
   foot.appendChild(resetBtn);
 
   panel.appendChild(head);

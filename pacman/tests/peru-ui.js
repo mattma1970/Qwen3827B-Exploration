@@ -350,6 +350,30 @@ B.sandbox.__fake = fakePhoto();
   assert(z[0].children[0].__rec.drawImage.some((d) => d[0] === playerImg),
     "player zone preview drew the assigned photo");
 
+  console.log("quota guard (M5):");
+  const usage = byClass(bodyEl, "cp-usage")[0];
+  assert(!!usage && /de 5\.0 MB$/.test(usage.textContent),
+    "usage meter in the footer (got " + (usage && usage.textContent) + ")");
+  inCtx(B, "SpriteData.Dario = 'data:image/png;base64,' + ('X'.repeat(SPRITE_QUOTA - 40));");
+  key("KeyC");
+  assert(usage.textContent === "usando 5.0 MB de 5.0 MB",
+    "meter shows the seeded usage after a panel refresh (got " + usage.textContent + ")");
+  const playerBefore = inCtx(B, "SpriteData.player");
+  z[0].dispatch("drop", { dataTransfer: { files: [fakePhoto()] } });
+  await tick(20);
+  assert(byClass(bodyEl, "toast")[0].textContent === "armazenamento cheio \u2014 foto muito grande",
+    "over-quota drop toasts the storage-full message");
+  assert(inCtx(B, "SpriteData.player === '" + playerBefore + "' && Sprites.player !== null"),
+    "over-quota drop leaves the previous player sprite untouched");
+  key("Escape");
+  byClass(bodyEl, "cp-reset")[0].dispatch("click", {});
+  assert(usage.textContent === "usando 0 kB de 5.0 MB",
+    "reset frees the quota and the meter back to zero (got " + usage.textContent + ")");
+  z[0].dispatch("drop", { dataTransfer: { files: [fakePhoto()] } });
+  await tick(20);
+  assert(byClass(bodyEl, "toast")[0].textContent === "foto aplicada em PACMAN",
+    "after reset the drop succeeds again");
+
   console.log(fail === 0 ? "ALL CHECKS PASSED" : fail + " CHECKS FAILED");
   process.exit(fail === 0 ? 0 : 1);
 })().catch(function (e) {

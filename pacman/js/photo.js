@@ -105,7 +105,15 @@ function medianCut(rgba, w, h, colors) {
 
 var SPRITE_SIZE = 256;
 var SPRITE_LS_PREFIX = "peruman.sprite.";
+var SPRITE_QUOTA = 5 * 1024 * 1024; // data-URL chars (~bytes) allowed across all slots
 var SpriteData = {}; // slot -> data URL of the assigned photo sprite
+
+// Every assignable slot, in display order (player, pill, the 4 named turkeys).
+function allSlots() {
+  const slots = ["player", "pill"];
+  if (typeof TURKEYS !== "undefined") for (const d of TURKEYS) slots.push(d.name);
+  return slots;
+}
 
 // Normalize a slot name: "player" | "pill" | a turkey name (case-insensitive).
 // Returns null for unknown slots (needs TURKEYS from config.js when called).
@@ -244,6 +252,27 @@ function hasStorage() {
   try { return typeof localStorage !== "undefined" && !!localStorage; } catch (e) { return false; }
 }
 
+// Total localStorage bytes in use by the sprite entries (keys + values).
+function spriteUsage() {
+  let total = 0;
+  for (const s of Object.keys(SpriteData)) {
+    total += (SPRITE_LS_PREFIX + s).length + String(SpriteData[s]).length;
+  }
+  return total;
+}
+
+// Would storing `url` under `slot` keep total usage within SPRITE_QUOTA?
+// Re-placing the same slot counts the new URL in place of the old one.
+function spriteFits(slot, url) {
+  const s = spriteSlot(slot);
+  if (!s) return false;
+  const keyLen = (SPRITE_LS_PREFIX + s).length;
+  let used = spriteUsage();
+  const old = SpriteData[s];
+  if (old) used -= keyLen + String(old).length;
+  return used + keyLen + String(url).length <= SPRITE_QUOTA;
+}
+
 function persistSlot(slot) {
   if (!hasStorage()) return false;
   const url = SpriteData[slot];
@@ -257,8 +286,12 @@ function assignPhoto(slot, source, opts) {
   const s = spriteSlot(slot);
   if (!s) return Promise.reject(new Error("unknown sprite slot: " + slot));
   return imageToSprite(source, opts).then(function (img) {
+    const url = img._spriteUrl || (typeof img.src === "string" ? img.src : "");
+    if (hasStorage() && !spriteFits(s, url)) {
+      return Promise.reject(new Error("sprite storage quota exceeded"));
+    }
     setSprite(s, img);
-    SpriteData[s] = img._spriteUrl || (typeof img.src === "string" ? img.src : "");
+    SpriteData[s] = url;
     persistSlot(s);
     return s;
   });
@@ -267,10 +300,7 @@ function assignPhoto(slot, source, opts) {
 // At boot: re-hydrate Sprites from localStorage so custom sprites survive reloads.
 function restoreSprites() {
   if (typeof Image === "undefined" || !hasStorage()) return;
-  const slots = ["player", "pill"];
-  if (typeof TURKEYS !== "undefined") {
-    for (const d of TURKEYS) slots.push(d.name);
-  }
+  const slots = allSlots();
   for (const s of slots) {
     let url = null;
     try { url = localStorage.getItem(SPRITE_LS_PREFIX + s); } catch (e) {}

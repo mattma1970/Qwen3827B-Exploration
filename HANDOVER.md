@@ -1,13 +1,43 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-21 (React conversion, R1–R5 on branch `mattma-react-conversion`).
+> Read this first to pick up where work left off. Last updated: 2026-08-21 (React conversion
+> **merged to main** via PR #3; **camera capture** done on `feature/camera-photo`, PR #4 open).
 > Keep this file updated as you go so a future session can resume.
 
-## React conversion (pacman-react/) — CURRENT WORK, branch `mattma-react-conversion`
+## Camera capture (pacman-react/) — CURRENT, branch `feature/camera-photo`, PR #4 open
+Goal (user): a **"take a photo with the camera and use it"** option in the personalize panel.
+Done on `feature/camera-photo` (from `origin/main` @ `7b0a207`), commit `c9626c9`, pushed:
+- `src/game/camera.ts`: `isCameraSupported()` + `captureFrame(video, maxDim=1024)` — draws the
+  current video frame to a downscaled canvas, returns a PNG data URL (never upscales; null when
+  no frame / no 2d ctx). Nothing runs at import time (safe under node/vitest).
+- `src/components/CameraCapture.tsx`: overlay, `getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false})`,
+  live `<video>`, cleanup stops tracks; pt-BR error states for insecure context / denied
+  (`NotAllowedError`/`SecurityError`) / unavailable, each pointing at the file-picker fallback
+  (click the slot); Escape closes.
+- `CustomizePanel.tsx`: per-slot "foto" button (`.slot-cam`, inside `.slot-btns` next to "limpar")
+  opens the overlay for that slot; the captured data URL goes through the SAME `assignPhoto`
+  pipeline as a dropped file (quota/persistence/slot-normalization reused, no duplication).
+  Panel Escape is suppressed while the camera is open; captured slot becomes lastUsed.
+- `style.css`: `.slot-btns` flex row; camera overlay styles (`.cam-*`, z 70 above the panel).
+- Front/back flip (selfie): `CameraCapture` holds `facing` state (default
+  `environment`), the ⇄ button re-requests `getUserMedia` with the other facingMode
+  (bare string = ideal semantics, so single-cam devices just re-open, no error); the
+  title shows FRENTE/COSTAS, and front shots mirror the live feed (`.cam-video.mirror`)
+  AND the captured frame (`captureFrame(…, mirror)`) so the sprite matches the preview.
+- `tests/peru-camera.test.ts`: 12 tests (support detection ×4; data-URL shape, downscale
+  1920x1080→1024x576 and portrait, custom maxDim, no-upscale, 0x0 → null + no canvas created,
+  no-ctx → null) via `vi.stubGlobal` of `navigator` and `document.createElement`.
+**Full suite: 41 tests / 7 files green; `npm run build` clean (~184 kB js / 60.7 kB gzip).**
+**PR #4 open for MANUAL merge** (AGENTS.md: agents never auto-merge):
+https://github.com/mattma1970/Qwen3827B-Exploration/pull/4
+Phone test: camera needs https/localhost → `npm run dev -- --host` from `pacman-react/`,
+port-forward, open Personalizar (hamburger), tap **foto** on a slot.
+
+## React conversion (pacman-react/) — DONE, merged to main (PR #3, merge `7b0a207`)
 Goal (user): port the game to **React + TypeScript** so it runs on a **phone** in a new
-`pacman-react/` folder (`pacman/` left intact as reference). **Camera capture** is a LATER
-branch — this branch is the conversion (+ touch controls from the start). All on branch
-`mattma-react-conversion` (from `main`); **never push to `main`** (AGENTS.md); land via PR.
+`pacman-react/` folder (`pacman/` left intact as reference). Was on branch
+`mattma-react-conversion`; **user merged PR #3 manually** → `origin/main` now contains
+`pacman-react/`. **Never push to `main`** (AGENTS.md); land via PR + manual merge.
 
 - **Engine outside React**: rAF loop lives in `useEffect` inside `src/components/GameBoard.tsx`;
   React owns the shell (`App.tsx`, `GameBoard`, `TouchControls`, `CustomizePanel`).
@@ -28,10 +58,9 @@ branch — this branch is the conversion (+ touch controls from the start). All 
   on mount. (The sprite "boot restore" test now calls `restoreSprites()` explicitly to mirror this.)
 - **R5**: README written (`pacman-react/README.md`), build re-verified.
 
-**PR #3 open (manual merge)**: `mattma-react-conversion` pushed (commits `6a213b4`
-port+tests, `eb8221a` mobile hamburger UI), PR opened:
-https://github.com/mattma1970/Qwen3827B-Exploration/pull/3 — landing on main is a
-**manual human merge** (per AGENTS.md: agents never auto-merge PRs). NOTE: `pacman-react/` is
+**Landed on main**: user manually merged PR #3 (commit `6a213b4` port+tests, `eb8221a` mobile
+hamburger UI) → merge `7b0a207`; `origin/main` now contains `pacman-react/`.
+NOTE: `pacman-react/` is
 NOT part of the GitHub Pages publish config (Pages still serves `pacman/` from main);
 playing it means running `npm run dev`/`preview` from `pacman-react/`.
 **Phone testing**: dev server binds 0.0.0.0:5173 (`npm run dev -- --host`); `dev.ideas.nu`
@@ -44,16 +73,14 @@ DPad used to overlap it); hint text swaps to a touch-friendly version. A purple 
 logo badge + console.log("PERU MAN — react+ts build (pacman-react)") distinguish the
 build from the vanilla one.
 
-**Next (later branch, not this one):** phone-camera-photo capture + fallback-to-defaults.
-
 **Verify loop (from `pacman-react/`):**
 ```
-npm test          # vitest run (6 suites)
+npm test          # vitest run (7 suites, 41 tests)
 npm run build     # tsc && vite build
 ```
 This is a remote server (user can't easily open a browser; local http.server OOM'd) — rely on
-`npm test` + `npm run build`, not real-browser testing. Commit on `mattma-react-conversion`,
-push same-named remote via `git push -u origin mattma-react-conversion` (`gh auth setup-git`).
+`npm test` + `npm run build`, not real-browser testing. Feature work goes on a new branch off
+`origin/main`; push the same-named remote (`gh auth setup-git`).
 `pacman/img/rafa_emoji.png` is the only tracked image; the React app references `public/img/`.
 
 ## What this is

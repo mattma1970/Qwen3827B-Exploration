@@ -200,12 +200,15 @@ guarded so headless Node stays safe.
   helpers + the headless guard. Note: data-URL sequence is a global counter (CVSEQ) so
   re-assigns produce distinct URLs for change-detection asserts.
 
-## WIP: drop-a-photo-to-sprite feature (branch `feature/photo-sprite`)
-**Status snapshot (2026-08-21):** M5 (quota guard) is implemented and committed locally
-on `feature/photo-sprite` — **NOT pushed**: the user wants to test the branch in a
-real browser first. M2–M4 are on `origin/feature/photo-sprite`. All 7 test suites green
-(peru-ui 56, peru-sprite 46 checks). **Next: user browser test, then land the branch on
-main** (separate explicit step: merge into main + push main).
+## DONE: drop-a-photo-to-sprite feature (was branch `feature/photo-sprite`)
+**Status snapshot (2026-08-21):** feature is LIVE on main, merged via
+https://github.com/mattma1970/Qwen3827B-Exploration/pull/1 (merge commit `35497f7`,
+`feature/photo-sprite` → `main`).
+All 7 test suites green (peru-ui 56, peru-sprite 46 checks). The feature branch
+(local + `origin/feature/photo-sprite`) is fully merged and safe to delete.
+GitHub Pages serves it from main at
+https://mattma1970.github.io/Qwen3827B-Exploration/pacman/ — open the page and press
+**C** to bring up the customize panel.
 **Feature**: user drops a photo into the game; it is "emoji-fied" in-browser (photo ->
 256x256 -> blur -> posterize -> median-cut to 16 flat colors) and becomes a sprite
 assignable to Pacman, a turkey, or the power pill. Photos stay local (no upload/server).
@@ -238,15 +241,18 @@ Pill: image on the glowing disc.
   refreshes on every `refreshAll` (open panel / drop success / clear / reset). The
   raw-storage QuotaExceededError path still degrades gracefully (persistSlot → false,
   in-memory sprite kept). restoreSprites now reuses `allSlots()`.
-- [ ] Browser test of the finished UI (user), then **land on main**.
+- [x] **Landed on main**: pushed M5 to `origin/feature/photo-sprite` (commits
+  `766921c`, `e9a19cb`), merged PR #1 into main (merge `35497f7`); local `main`
+  fast-forwarded. Served on GitHub Pages from main.
 
 ### Notes for the next session
-- M5 is committed locally but **NOT pushed** (user is testing the branch in a real
-  browser). After approval: push `feature/photo-sprite` if it moved, then the explicit
-  landing step (merge into main + push main; never push new work straight to main).
-- Panel DOM wiring is exercised headless via the fake DOM in tests/peru-ui.js, but the
-  REAL-browser feel (drag-drop, file picker, toast timing, panel scroll on small
-  screens) has only been code-reviewed — verify in a browser before landing.
+- Nothing blocking. Optional cleanups: delete the merged `feature/photo-sprite`
+  branches (local + remote) and the stale local `mattma-pacman-update` branch
+  (sits on the same commit as main, has nothing extra).
+- Panel DOM wiring is exercised headless via the fake DOM in tests/peru-ui.js, but
+  the REAL-browser feel (drag-drop, file picker, toast timing, panel scroll on small
+  screens) was code-reviewed — if the user spots anything in a real browser, fix it
+  on a fresh feature branch (never straight to main).
 - Load order is fixed: config -> utils -> audio -> sprites -> photo -> pacman -> ghost ->
   game -> main. The test suites load only the files they need (peru-sprite.js:
   config → utils → audio → sprites → photo).

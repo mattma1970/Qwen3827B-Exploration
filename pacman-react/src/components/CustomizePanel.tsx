@@ -11,6 +11,7 @@ import { drawCanvaPill, drawPlayer, drawTurkey } from "../game/sprites";
 import { SpriteData, allSlots, spriteUsage, SPRITE_QUOTA } from "../game/photoSlots";
 import { assignPhoto, clearPhoto } from "../game/photo";
 import { AudioFX } from "../game/audio";
+import CameraCapture from "./CameraCapture";
 
 function slotList(): string[] {
   return allSlots();
@@ -66,11 +67,13 @@ function SlotZone({
   version,
   onAssign,
   onClear,
+  onCamera,
 }: {
   slot: string;
   version: number;
   onAssign: (slot: string, f: File) => void;
   onClear: (slot: string) => void;
+  onCamera: (slot: string) => void;
 }) {
   const prevRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -107,15 +110,27 @@ function SlotZone({
       <canvas ref={prevRef} className="slot-prev" width={64} height={64} />
       <div className="slot-name">{slotLabel(slot)}</div>
       <div className="slot-status">{assigned ? "personalizada" : "padrão"}</div>
-      <button
-        className="slot-clear"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClear(slot);
-        }}
-      >
-        limpar
-      </button>
+      <div className="slot-btns">
+        <button
+          className="slot-cam"
+          title="tirar foto com a câmera"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCamera(slot);
+          }}
+        >
+          foto
+        </button>
+        <button
+          className="slot-clear"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClear(slot);
+          }}
+        >
+          limpar
+        </button>
+      </div>
       <input
         ref={fileRef}
         className="slot-file"
@@ -135,6 +150,8 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   const [toast, setToast] = useState<{ msg: string; show: boolean }>({ msg: "", show: false });
   const [version, setVersion] = useState(0);
   const [lastUsed, setLastUsed] = useState("player");
+  // slot the camera overlay is capturing for (null = camera closed)
+  const [cameraSlot, setCameraSlot] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
   const pausedByPanel = useRef(false);
 
@@ -164,11 +181,12 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Escape" && open) setPanel(false);
+      // while the camera overlay is open, its own Escape handler closes it
+      if (e.code === "Escape" && open && !cameraSlot) setPanel(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, setPanel]);
+  }, [open, setPanel, cameraSlot]);
 
   // register the C-toggle (freshest closure on every render)
   const openRef = useRef(open);
@@ -205,6 +223,26 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   useEffect(() => {
     registerDropHandler(handleCanvasDrop);
   });
+
+  // captured camera frame arrives as a PNG data URL: close the overlay (which
+  // stops the camera stream) and feed it through the same pipeline as a file
+  const handleCapture = (slot: string, dataUrl: string) => {
+    setCameraSlot(null);
+    assignPhoto(slot, dataUrl).then(
+      (name) => {
+        setLastUsed(name);
+        bump();
+        showToast("foto aplicada em " + slotLabel(name));
+      },
+      (err: unknown) => {
+        showToast(
+          String(err).indexOf("quota") > -1
+            ? "armazenamento cheio — foto muito grande"
+            : "não deu para usar essa foto"
+        );
+      }
+    );
+  };
 
   const handleClear = (slot: string) => {
     clearPhoto(slot);
@@ -245,7 +283,14 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
           <div className="cp-sub">solte uma foto em cada slot — ou clique para escolher</div>
           <div className="cp-grid">
             {slotList().map((slot) => (
-              <SlotZone key={slot} slot={slot} version={version} onAssign={handleAssign} onClear={handleClear} />
+              <SlotZone
+                key={slot}
+                slot={slot}
+                version={version}
+                onAssign={handleAssign}
+                onClear={handleClear}
+                onCamera={(s) => setCameraSlot(s)}
+              />
             ))}
           </div>
           <div className="cp-foot">
@@ -257,6 +302,14 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
             </button>
           </div>
         </div>
+      )}
+
+      {cameraSlot && (
+        <CameraCapture
+          slotLabel={slotLabel(cameraSlot)}
+          onApply={(url) => handleCapture(cameraSlot, url)}
+          onClose={() => setCameraSlot(null)}
+        />
       )}
 
       <div className={"toast" + (toast.show ? " show" : "")}>{toast.msg}</div>

@@ -148,7 +148,8 @@ canvas { display: block; }
   color: #cdd3ff;
 }
 .slot-status { font-size: 10px; color: #6d74a8; }
-.slot-clear {
+.slot-btns { display: flex; gap: 6px; margin-top: 2px; }
+.slot-cam, .slot-clear {
   background: none;
   border: 1px solid #4a4f8c;
   color: #9aa0d9;
@@ -156,8 +157,9 @@ canvas { display: block; }
   border-radius: 999px;
   padding: 2px 12px;
   cursor: pointer;
-  margin-top: 2px;
 }
+.slot-cam { color: #7ee8fa; border-color: #2e8ca8; }
+.slot-cam:hover { background: rgba(126, 232, 250, 0.12); }
 .slot-clear:hover { background: #23235a; }
 .slot-zone:not(.filled) .slot-clear { display: none; }
 .slot-file { display: none; }
@@ -192,6 +194,79 @@ canvas { display: block; }
   z-index: 60;
 }
 .toast.show { opacity: 1; }
+
+/* ---- camera capture overlay (above the panel, z 50) ---- */
+.cam-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: #12122b;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+.cam-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #8f96d9;
+}
+.cam-x {
+  background: none;
+  border: none;
+  color: #6d74a8;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cam-x:hover { color: #fff; }
+.cam-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  border: 1px solid #3d3d85;
+  overflow: hidden;
+}
+.cam-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.cam-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6d74a8;
+  font-size: 13px;
+}
+.cam-error {
+  color: #ff8390;
+  font-size: 13px;
+  text-align: center;
+  padding: 6px;
+}
+.cam-actions { display: flex; gap: 10px; }
+.cam-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid #4a4f8c;
+  color: #cdd3ff;
+  font-size: 14px;
+  border-radius: 999px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.cam-btn:hover { background: #23235a; }
+.cam-btn.shoot { color: #ffdf00; border-color: rgba(255, 223, 0, 0.6); }
+.cam-btn.shoot:disabled { color: #4a4f8c; border-color: #33336b; cursor: default; }
 
 /* ---- mobile: fit the board + on-screen controls ---- */
 

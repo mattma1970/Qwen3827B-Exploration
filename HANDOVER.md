@@ -28,6 +28,22 @@ branch — this branch is the conversion (+ touch controls from the start). All 
   on mount. (The sprite "boot restore" test now calls `restoreSprites()` explicitly to mirror this.)
 - **R5**: README written (`pacman-react/README.md`), build re-verified.
 
+**PR #3 open (manual merge)**: `mattma-react-conversion` pushed (commits `6a213b4`
+port+tests, `eb8221a` mobile hamburger UI), PR opened:
+https://github.com/mattma1970/Qwen3827B-Exploration/pull/3 — landing on main is a
+**manual human merge** (per AGENTS.md: agents never auto-merge PRs). NOTE: `pacman-react/` is
+NOT part of the GitHub Pages publish config (Pages still serves `pacman/` from main);
+playing it means running `npm run dev`/`preview` from `pacman-react/`.
+**Phone testing**: dev server binds 0.0.0.0:5173 (`npm run dev -- --host`); `dev.ideas.nu`
+is allow-listed in vite.config.ts (port-forwarded to test on the phone).
+**Mobile UI (eb8221a)**: viewport ≤720px (useIsMobile in App.tsx, sync with the CSS
+720px media rule) shows a fixed top-left ✓-style hamburger (⌘ no — `☰`, z 45: above the
+dpad 40, below the open panel 50 which has its own ×) running the same pause-aware panel
+toggle as the C hotkey; the in-flow "Personalizar (C)" button is hidden on mobile (the
+DPad used to overlap it); hint text swaps to a touch-friendly version. A purple "react"
+logo badge + console.log("PERU MAN — react+ts build (pacman-react)") distinguish the
+build from the vanilla one.
+
 **Next (later branch, not this one):** phone-camera-photo capture + fallback-to-defaults.
 
 **Verify loop (from `pacman-react/`):**

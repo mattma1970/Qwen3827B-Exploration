@@ -1,7 +1,44 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-21 (photo-sprite M4).
+> Read this first to pick up where work left off. Last updated: 2026-08-21 (React conversion, R1–R5 on branch `mattma-react-conversion`).
 > Keep this file updated as you go so a future session can resume.
+
+## React conversion (pacman-react/) — CURRENT WORK, branch `mattma-react-conversion`
+Goal (user): port the game to **React + TypeScript** so it runs on a **phone** in a new
+`pacman-react/` folder (`pacman/` left intact as reference). **Camera capture** is a LATER
+branch — this branch is the conversion (+ touch controls from the start). All on branch
+`mattma-react-conversion` (from `main`); **never push to `main`** (AGENTS.md); land via PR.
+
+- **Engine outside React**: rAF loop lives in `useEffect` inside `src/components/GameBoard.tsx`;
+  React owns the shell (`App.tsx`, `GameBoard`, `TouchControls`, `CustomizePanel`).
+- Modules ported 1:1 to `src/game/*.ts`: config, utils, audio, sprites, photoSlots, photo,
+  pacman, ghost, game. DOM-guarded at import so node/vitest can import them cleanly.
+- Build errors fixed: `Mover.update`→`step` (TS2416 override clash, `Player.update` calls
+  `step`); `photo.ts` `Uint8ClampedArray`→`ImageData` widening + cast; `sprites.ts`
+  `spriteReady` is a type guard (`img is HTMLImageElement`).
+- **R1–R3 code-complete**, `npm run build` (tsc + vite) passes (dist js ~180 kB / gzip ~59 kB).
+- **R4 tests ported to vitest** in `pacman-react/tests/` (run `npm test`, 30 tests / 6 files green):
+  peru-photo, peru-smoke, peru-flee, peru-buffer, peru-scripted (straight ports via direct import
+  + a no-op ctx Proxy), and peru-sprite (full DOM-stub env: Image/canvas/localStorage/URL/
+  ImageData via `vi.stubGlobal`, fresh registry per scenario via `vi.resetModules()` + dynamic
+  import). `peru-ui` NOT ported (DOM-heavy; React DOM tests differ — do it separately if wanted).
+- **R4 regression found + fixed**: the vanilla `photo.js` auto-ran `restoreSprites()` at module
+  load; the TS port dropped it and the React app never called it → custom sprites would NOT
+  survive a reload. Fixed idiomatically: `App.tsx` calls `restoreSprites()` once in a `useEffect`
+  on mount. (The sprite "boot restore" test now calls `restoreSprites()` explicitly to mirror this.)
+- **R5**: README written (`pacman-react/README.md`), build re-verified.
+
+**Next (later branch, not this one):** phone-camera-photo capture + fallback-to-defaults.
+
+**Verify loop (from `pacman-react/`):**
+```
+npm test          # vitest run (6 suites)
+npm run build     # tsc && vite build
+```
+This is a remote server (user can't easily open a browser; local http.server OOM'd) — rely on
+`npm test` + `npm run build`, not real-browser testing. Commit on `mattma-react-conversion`,
+push same-named remote via `git push -u origin mattma-react-conversion` (`gh auth setup-git`).
+`pacman/img/rafa_emoji.png` is the only tracked image; the React app references `public/img/`.
 
 ## What this is
 A modern Pac-Man remake. Theme (user-specified):

@@ -43,6 +43,9 @@ interface PanelProps {
   open: boolean;
   setOpen: (v: boolean) => void;
   game: Game | null;
+  // on phones the top-left hamburger replaces the in-flow "Personalizar"
+  // button (which the fixed on-screen DPad would overlap)
+  mobile?: boolean;
   // the panel decides where drop-anywhere-on-canvas goes (the last-used slot),
   // so it registers its canvas-drop handler up top
   registerDropHandler: (h: (f: File | null) => void) => void;
@@ -128,7 +131,7 @@ function SlotZone({
   );
 }
 
-export default function CustomizePanel({ open, setOpen, game, registerDropHandler, registerToggle }: PanelProps) {
+export default function CustomizePanel({ open, setOpen, game, mobile = false, registerDropHandler, registerToggle }: PanelProps) {
   const [toast, setToast] = useState<{ msg: string; show: boolean }>({ msg: "", show: false });
   const [version, setVersion] = useState(0);
   const [lastUsed, setLastUsed] = useState("player");
@@ -218,16 +221,18 @@ export default function CustomizePanel({ open, setOpen, game, registerDropHandle
 
   return (
     <>
-      <button
-        className="custom-btn"
-        onClick={(e) => {
-          e.preventDefault();
-          AudioFX.ensure();
-          setPanel(!open);
-        }}
-      >
-        Personalizar (C)
-      </button>
+      {!mobile && (
+        <button
+          className="custom-btn"
+          onClick={(e) => {
+            e.preventDefault();
+            AudioFX.ensure();
+            setPanel(!open);
+          }}
+        >
+          Personalizar (C)
+        </button>
+      )}
 
       {open && (
         <div className="customize-panel">

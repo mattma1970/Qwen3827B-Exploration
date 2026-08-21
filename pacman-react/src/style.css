@@ -24,6 +24,23 @@ body {
   text-shadow: 0 0 24px rgba(0, 156, 59, 0.25);
 }
 
+.ver-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px 3px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  vertical-align: super;
+  border-radius: 6px;
+  background: #7d2ae7;
+  color: #fff;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  text-shadow: none;
+}
+
 .canvas-wrap {
   display: inline-block;
   border: 2px solid #2c2c5e;
@@ -179,6 +196,41 @@ canvas { display: block; }
 /* ---- mobile: fit the board + on-screen controls ---- */
 
 canvas { max-width: 100%; height: auto; }
+
+/* top-left hamburger (phones): opens the personalize panel. Replaces the
+   in-flow "Personalizar" button, which the fixed DPad would sit over. */
+.menu-btn {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  /* above the dpad (40), below the open panel (50, which has its own close ×) */
+  z-index: 45;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(35, 35, 90, 0.85);
+  color: #cdd3ff;
+  border: 1px solid #3d3d85;
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.menu-btn:active { background: #2e2e75; }
+.hint .menu {
+  color: #cdd3ff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  /* room for the fixed top-left hamburger */
+  .logo { padding-top: 34px; }
+}
 
 @media (max-width: 520px) {
   .wrap { padding: 10px 8px 120px; }

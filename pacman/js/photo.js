@@ -111,7 +111,9 @@ var SpriteData = {}; // slot -> data URL of the assigned photo sprite
 // Returns null for unknown slots (needs TURKEYS from config.js when called).
 function spriteSlot(name) {
   const s = String(name);
-  if (s === "player" || s === "pill") return s;
+  const low = s.toLowerCase();
+  if (low === "player") return "player";
+  if (low === "pill") return "pill";
   if (typeof TURKEYS === "undefined") return null;
   for (const d of TURKEYS) {
     if (d.name.toLowerCase() === s.toLowerCase()) return d.name;

@@ -11,6 +11,7 @@
   ctx.scale(DPR, DPR);
 
   const game = new Game(ctx, SIZE);
+  initCustomize(game, canvas);
 
   const KEYMAP = {
     ArrowUp: "up", KeyW: "up",

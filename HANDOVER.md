@@ -129,5 +129,51 @@ unaffected (they never set `want`; they override decide()).
 peru-buffer.js section 2 rewritten: reversed at once + backed away from the
 dead end (never hits its wall). All 4 suites pass.
 
+## Git workflow (important — see AGENTS.md)
+Work on local feature branches; when pushing, create the SAME-NAMED remote branch
+(`git push -u origin <branch>`). NEVER push new work to `main` directly (Pages serves
+`main`). Landing on main = explicit merge/PR afterward.
+
+## WIP: drop-a-photo-to-sprite feature (branch `feature/photo-sprite`)
+**Feature**: user drops a photo into the game; it is "emoji-fied" in-browser (photo ->
+256x256 -> blur -> posterize -> median-cut to 16 flat colors) and becomes a sprite
+assignable to Pacman, a turkey, or the power pill. Photos stay local (no upload/server).
+**Design decision (user)**: v1 uses the photo AS-IS — NO masking/cropping. Edge-detection
+trim is an explicit later version. Pacman's mouth-wedge clip still applies (animation, not
+crop). Turkeys: raw square image replaces the whole hand-drawn turkey as one unit.
+Pill: image on the glowing disc.
+
+### Plan / milestones
+- [x] **M1** committed `b566d13` (pushed to origin/feature/photo-sprite): `js/photo.js`
+  pure core — `posterize(rgba, levels)` + `medianCut(rgba,w,h,colors)->{data,palette}`.
+  Pure functions over Uint8ClampedArray, no canvas/DOM; declared as top-level `function`s
+  so they attach to the vm sandbox global (const/class would NOT). Added to index.html
+  after sprites.js. Tests: `tests/peru-photo.js` (11 checks).
+- [ ] **M2** glue: `imageToSprite(file, {colors, blur})` — canvas: draw File (via
+  createObjectURL/Image) onto 256x256 square (cover-crop), `ctx.filter="blur(4px)"`
+  (fallback manual box blur), getImageData, posterize(20), medianCut(16), putImageData,
+  toDataURL -> new Image. Plus sprite registry `Sprites = { player, ghosts:{name}, pill }`
+  (Image|null) in sprites.js or photo.js; `drawPlayer`/`drawMiniFlag` use
+  `Sprites.player || rafaEmojiImg` (keep existing BR-flag fallback chain). Pacman slot
+  end-to-end: drop File -> player updated + persisted to localStorage (data-URL restore
+  at boot).
+- [ ] **M3** turkey + pill slots: `drawTurkey` takes photo via opts (raw square replaces
+  turkey unit, keep bob); frightened = blue tint overlay + squiggle face on top.
+  `drawCanvaPill` prefers `Sprites.pill` over the wordmark.
+- [ ] **M4** UI: customize panel (key S or button) with 6 drop zones (Pacman, 4 named
+  turkeys, pill) + clear buttons; drop-anywhere on canvas (last-used slot); file-input
+  fallback for mobile; reset-to-defaults.
+- [ ] **M5** polish: previews, error toasts for non-image drops, localStorage quota
+  guard (~5MB cap; ~10-15KB per 256px 16-color PNG).
+
+### Notes for the next session
+- Load order is fixed: config -> utils -> audio -> sprites -> photo -> pacman -> ghost ->
+  game -> main. Tests load files in the same order they need; peru-photo.js loads ONLY photo.js.
+- Headless gotcha re-confirmed: top-level `function`/`var` attach to the vm sandbox;
+  `const`/`let`/`class` don't.
+- Persistence plan: localStorage data-URLs keyed per slot; restore into `Sprites.*` at boot
+  (guard for headless: typeof localStorage).
+- All 5 suites currently green (smoke, scripted, flee, buffer, photo).
+
 ## Idea backlog (optional, not requested)
 - Could add a small "CANVA" text under the pill (redundant now that the wordmark is shown).

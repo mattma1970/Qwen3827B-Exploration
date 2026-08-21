@@ -247,6 +247,23 @@ canvas { display: block; }
   height: 100%;
   object-fit: contain;
 }
+/* front camera: show the feed like a mirror (the captured frame is mirrored too) */
+.cam-video.mirror { transform: scaleX(-1); }
+.cam-flip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(35, 35, 90, 0.8);
+  border: 1px solid #3d3d85;
+  color: #cdd3ff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cam-flip:active { background: #2e2e75; }
 .cam-loading {
   position: absolute;
   inset: 0;

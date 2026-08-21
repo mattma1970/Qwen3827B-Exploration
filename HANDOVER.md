@@ -19,7 +19,12 @@ Done on `feature/camera-photo` (from `origin/main` @ `7b0a207`), commit `c9626c9
   pipeline as a dropped file (quota/persistence/slot-normalization reused, no duplication).
   Panel Escape is suppressed while the camera is open; captured slot becomes lastUsed.
 - `style.css`: `.slot-btns` flex row; camera overlay styles (`.cam-*`, z 70 above the panel).
-- `tests/peru-camera.test.ts`: 11 tests (support detection ×4; data-URL shape, downscale
+- Front/back flip (selfie): `CameraCapture` holds `facing` state (default
+  `environment`), the ⇄ button re-requests `getUserMedia` with the other facingMode
+  (bare string = ideal semantics, so single-cam devices just re-open, no error); the
+  title shows FRENTE/COSTAS, and front shots mirror the live feed (`.cam-video.mirror`)
+  AND the captured frame (`captureFrame(…, mirror)`) so the sprite matches the preview.
+- `tests/peru-camera.test.ts`: 12 tests (support detection ×4; data-URL shape, downscale
   1920x1080→1024x576 and portrait, custom maxDim, no-upscale, 0x0 → null + no canvas created,
   no-ctx → null) via `vi.stubGlobal` of `navigator` and `document.createElement`.
 **Full suite: 41 tests / 7 files green; `npm run build` clean (~184 kB js / 60.7 kB gzip).**

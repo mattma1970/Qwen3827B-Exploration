@@ -16,8 +16,10 @@ export function isCameraSupported(): boolean {
 // Draw the current video frame into a downscaled canvas and return it as a PNG
 // data URL. Downscaling keeps the data-URL small before it hits the sprite
 // pipeline (which cover-crops to 256x256 anyway). Returns null when
-// the video has no frame yet (width/height are 0).
-export function captureFrame(video: HTMLVideoElement, maxDim = 1024): string | null {
+// the video has no frame yet (width/height are 0). mirror=true flips the frame
+// horizontally — front-camera (selfie) shots are mirrored so the sprite matches
+// what was on screen.
+export function captureFrame(video: HTMLVideoElement, maxDim = 1024, mirror = false): string | null {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
   if (!vw || !vh) return null;
@@ -29,6 +31,10 @@ export function captureFrame(video: HTMLVideoElement, maxDim = 1024): string | n
   cv.height = h;
   const ctx = cv.getContext("2d");
   if (!ctx) return null;
+  if (mirror) {
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+  }
   ctx.drawImage(video, 0, 0, w, h);
   return cv.toDataURL("image/png");
 }

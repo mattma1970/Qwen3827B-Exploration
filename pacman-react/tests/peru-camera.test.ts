@@ -99,6 +99,14 @@ describe("captureFrame", () => {
     expect(cap.cv?.height).toBe(1024);
   });
 
+  it("mirror=true (front-camera selfie) still returns a same-size PNG data URL", () => {
+    const cap: CanvasCapture = {};
+    stubDocument(cap, noopCtx() as CanvasRenderingContext2D);
+    expect(captureFrame(makeVideo(1920, 1080), 1024, true)).toBe("data:image/png;base64,STUB");
+    expect(cap.cv?.width).toBe(1024);
+    expect(cap.cv?.height).toBe(576);
+  });
+
   it("returns null when the video has no frame yet (0x0)", () => {
     const cap: CanvasCapture = {};
     stubDocument(cap, noopCtx() as CanvasRenderingContext2D);

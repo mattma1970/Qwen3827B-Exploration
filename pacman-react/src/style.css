@@ -41,8 +41,13 @@ body {
   text-shadow: none;
 }
 
+/* board fills the screen width (up to its 480px logical size) and keeps its
+   square aspect via height:auto on the canvas — no fixed CSS pixel size, so
+   phones get the maximum board that fits */
 .canvas-wrap {
-  display: inline-block;
+  display: block;
+  width: min(480px, 100%);
+  margin: 0 auto 0 auto;
   border: 2px solid #2c2c5e;
   border-radius: 14px;
   overflow: hidden;
@@ -51,6 +56,10 @@ body {
 }
 
 canvas { display: block; }
+.canvas-wrap canvas {
+  width: 100%;
+  height: auto;
+}
 
 .hint {
   margin-top: 12px;
@@ -270,8 +279,6 @@ canvas { display: block; }
 
 /* ---- mobile: fit the board + on-screen controls ---- */
 
-canvas { max-width: 100%; height: auto; }
-
 /* top-left hamburger (phones): opens the personalize panel. Replaces the
    in-flow "Personalizar" button, which the fixed DPad would sit over. */
 .menu-btn {
@@ -308,7 +315,8 @@ canvas { max-width: 100%; height: auto; }
 }
 
 @media (max-width: 520px) {
-  .wrap { padding: 10px 8px 120px; }
+  /* bottom padding clears the fixed DPad (~168px tall + 12px gap) */
+  .wrap { padding: 10px 8px 180px; }
   .logo { font-size: 30px; letter-spacing: 4px; }
   .hint { font-size: 11px; line-height: 1.6; }
 }

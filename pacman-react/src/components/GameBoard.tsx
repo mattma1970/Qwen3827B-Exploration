@@ -43,11 +43,11 @@ export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop }: P
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // DPR scaling lives in the backing store only; the CSS display size is
+    // owned by style.css (.canvas-wrap) so the board fills the phone screen.
     const DPR = Math.min(2, window.devicePixelRatio || 1);
     canvas.width = SIZE * DPR;
     canvas.height = SIZE * DPR;
-    canvas.style.width = SIZE + "px";
-    canvas.style.height = SIZE + "px";
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.scale(DPR, DPR);

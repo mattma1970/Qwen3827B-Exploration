@@ -1,6 +1,6 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-21 (photo-sprite M2/M3).
+> Read this first to pick up where work left off. Last updated: 2026-08-21 (photo-sprite M4).
 > Keep this file updated as you go so a future session can resume.
 
 ## What this is
@@ -26,10 +26,11 @@ Named **PERU MAN**.
 - `js/audio.js` — AudioFX (Web Audio SFX, created on first user gesture; M to mute)
 - `js/sprites.js` — Sprites registry + spriteReady/playerSprite, drawPlayer (photo > rafa avatar > BR flag), drawTurkey (photo slot via opts.name), drawEyes, drawCanvaPill (photo > Canva wordmark, "C" fallback), drawPellet, drawMiniFlag, shadeHex
 - `js/photo.js` — emoji-fy core (posterize, medianCut) + glue: loadSourceImage, boxBlurRgba, imageToSprite, spriteSlot/spriteFor/setSprite/clearPhoto, assignPhoto, persistSlot/restoreSprites, SpriteData
+- `js/customize.js` — M4 UI: slotList/slotLabel/isImageFile/setLastUsedSlot/assignToSlot (pure, top-level) + initCustomize(game, canvas) builds the panel (6 drop zones w/ live previews), clear buttons, reset, drop-anywhere on canvas (lastUsedSlot), KeyC/Escape, toast
 - `js/pacman.js` — Mover base (grid move; on wall hit sets dir="none" so player stops, does NOT reverse) + Player
 - `js/ghost.js` — Turkey extends Mover (AI: scatter/chase BFS + flee when frightened)
 - `js/game.js` — Game state machine, collisions, scoring, rendering
-- `js/main.js` — bootstrap, DPR scaling, keyboard + pointer input, rAF loop
+- `js/main.js` — bootstrap, DPR scaling, keyboard + pointer input, rAF loop; calls `initCustomize(game, canvas)`
 - `README.md`
 
 Controls: arrows/WASD move, Enter/Space start, P pause, M mute. Mobile: tap left/right half.
@@ -44,6 +45,7 @@ Headless tests use `node` + `vm` to load the JS in order with a canvas-2D-contex
 - pacman/tests/peru-buffer.js  — keypress buffering: early turns survive blocked cells; opposite key reverses at dead ends
 - pacman/tests/peru-photo.js   — pure emoji-fy core (posterize, median-cut)
 - pacman/tests/peru-sprite.js  — M2/M3 glue: registry, fallback chain, imageToSprite pipeline (stub canvas), boxBlurRgba, turkey/pill slots, persistence, boot restore, quota guard
+- pacman/tests/peru-ui.js      — M4 UI over a fake DOM: panel build, KeyC open/close + pause/resume, zone drop (real pipeline), non-image/empty drops, file-input flow, canvas drop-anywhere (last-used slot), clear + reset, previews
 
 Quick loop after any JS edit (run from the repo root /home/mattma/repos/Qwen3827B-Exploration):
 ```
@@ -54,6 +56,7 @@ node pacman/tests/peru-flee.js            # flee direction (BFS)
 node pacman/tests/peru-buffer.js          # keypress buffering / dead-end reverse
 node pacman/tests/peru-photo.js           # emoji-fy pure core
 node pacman/tests/peru-sprite.js          # sprite registry/glue/turkey+pill slots
+node pacman/tests/peru-ui.js              # customize panel UI (fake DOM)
 ```
 (Tests reference the absolute js path, so location is fine; if you move the repo,
 update the `dir =` line at the top of each test.)
@@ -171,10 +174,36 @@ guarded so headless Node stays safe.
   assert with `indexOf(msg) > -1`, never `=== 0`.
 - Verified: `node --check` clean; all 6 suites green.
 
+## Done (photo-sprite M4: customize UI)
+**Feature**: `js/customize.js` (loaded after photo.js) + main.js calls
+`initCustomize(game, canvas)` + CSS in style.css. All pure helpers are top-level
+`function`/`var` (vm-global); `initCustomize` bails when headless (`typeof document`).
+- Panel (hidden): 6 drop zones in order PACMAN / DARIO / RITA / ZECA / TUCA / PÍLULA, each
+  with a live 64px preview canvas (drawPlayer/drawTurkey/drawCanvaPill of the current
+  state), status line ("padrão"/"personalizada"), a "limpar" clear button (shown when
+  filled) and a hidden `<input type=file accept="image/*">`.
+- Interactions: drag-drop onto a zone (dragover highlight) → `assignToSlot` (process +
+  assign + persist, marks `lastUsedSlot`); zone click → file picker (mobile fallback);
+  "restaurar padrões" button clears all 6 slots + resets lastUsedSlot; drop ANYWHERE on
+  the game canvas → goes to `lastUsedSlot` (default "player"); "Personalizar (C)" button
+  below the canvas.
+- **KEY: C (KeyC), not S — S is already the WASD "down" movement key.** Escape closes.
+- Opening the panel during play/ready auto-pauses; closing resumes only if the panel
+  paused it (title/gameover: no pause). Toast (fixed, bottom) for success/errors:
+  "foto aplicada em X", "só imagens, por favor", "não deu para ler essa imagem", etc.
+- `spriteSlot` now case-insensitive for player/pill too (was exact-match; only turkey
+  matching was case-insensitive).
+- Tests: `tests/peru-ui.js` (50 checks) drives the REAL initCustomize over a fake DOM
+  (FakeEl with className<->_classes, classList, addEventListener/dispatch) + `makeFullCtx`
+  (samples last-drawn source for the pipeline AND records drawImage for previews; gradient
+  factories get no-op addColorStop). Sandbox A (no document/Image/storage) covers the pure
+  helpers + the headless guard. Note: data-URL sequence is a global counter (CVSEQ) so
+  re-assigns produce distinct URLs for change-detection asserts.
+
 ## WIP: drop-a-photo-to-sprite feature (branch `feature/photo-sprite`)
-**Status snapshot (2026-08-21):** branch `feature/photo-sprite` is clean and in sync with
-its same-named remote branch (upstream set). Working tree has only untracked `pacman/img/`
-leftovers. All 6 test suites green. **Next up: M4 (UI), then M5 (polish).**
+**Status snapshot (2026-08-21):** branch `feature/photo-sprite` is in sync with its
+same-named remote branch. Working tree has only untracked `pacman/img/` leftovers.
+All 7 test suites green. **Next up: M5 (polish)** then land the branch on main.
 **Feature**: user drops a photo into the game; it is "emoji-fied" in-browser (photo ->
 256x256 -> blur -> posterize -> median-cut to 16 flat colors) and becomes a sprite
 assignable to Pacman, a turkey, or the power pill. Photos stay local (no upload/server).
@@ -192,15 +221,20 @@ Pill: image on the glowing disc.
 - [x] **M2** glue: committed with M3 in `d05487b` (see "Done (photo-sprite M2/M3)"
   above).
 - [x] **M3** turkey + pill slots: committed in `d05487b`.
-- [ ] **M4** UI: customize panel (key S or button) with 6 drop zones (Pacman, 4 named
-  turkeys, pill) + clear buttons; drop-anywhere on canvas (last-used slot); file-input
-  fallback for mobile; reset-to-defaults.
+- [x] **M4** UI: customize panel with 6 drop zones (Pacman, 4 named turkeys, pill) +
+  clear buttons; drop-anywhere on canvas (last-used slot); file-input fallback for
+  mobile; reset-to-defaults. Opened with **C** (S is the WASD down key) or the on-screen
+  button; see "Done (photo-sprite M4)" above.
 - [ ] **M5** polish: previews, error toasts for non-image drops, localStorage quota
   guard (~5MB cap; ~10-15KB per 256px 16-color PNG).
 
 ### Notes for the next session
-- NEXT = **M4** (UI: customize panel, drop zones, drop-anywhere, file-input fallback,
-  reset) then **M5** (previews, error toasts, ~5MB quota cap).
+- NEXT = **M5** (preview polish, error toasts with better wording, ~5MB localStorage
+  quota cap with a "too big" toast) then land the branch on main (separate explicit
+  step: merge into main + push main).
+- Panel DOM wiring is exercised headless via the fake DOM in tests/peru-ui.js, but the
+  REAL-browser feel (drag-drop, file picker, toast timing, panel scroll on small
+  screens) has only been code-reviewed — verify in a browser before landing.
 - Load order is fixed: config -> utils -> audio -> sprites -> photo -> pacman -> ghost ->
   game -> main. The test suites load only the files they need (peru-sprite.js:
   config → utils → audio → sprites → photo).
@@ -209,7 +243,7 @@ Pill: image on the glowing disc.
 - Persistence: localStorage data-URLs keyed `peruman.sprite.<slot>`; `restoreSprites()`
   rehydrates `Sprites.*` at boot (guarded by typeof Image + typeof localStorage).
   `persistSlot` swallows QuotaExceededError (returns false) so assignment still works.
-- All 6 suites currently green (smoke, scripted, flee, buffer, photo, sprite).
+- All 7 suites currently green (smoke, scripted, flee, buffer, photo, sprite, ui).
 - Untracked leftovers in `pacman/img/` (rafa.png, rafa_preview.png, framings.png)
   are NOT part of this feature — optional cleanup.
 

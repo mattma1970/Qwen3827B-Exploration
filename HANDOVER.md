@@ -193,7 +193,7 @@ guarded so headless Node stays safe.
   "foto aplicada em X", "só imagens, por favor", "não deu para ler essa imagem", etc.
 - `spriteSlot` now case-insensitive for player/pill too (was exact-match; only turkey
   matching was case-insensitive).
-- Tests: `tests/peru-ui.js` (50 checks) drives the REAL initCustomize over a fake DOM
+- Tests: `tests/peru-ui.js` (56 checks) drives the REAL initCustomize over a fake DOM
   (FakeEl with className<->_classes, classList, addEventListener/dispatch) + `makeFullCtx`
   (samples last-drawn source for the pipeline AND records drawImage for previews; gradient
   factories get no-op addColorStop). Sandbox A (no document/Image/storage) covers the pure
@@ -201,9 +201,11 @@ guarded so headless Node stays safe.
   re-assigns produce distinct URLs for change-detection asserts.
 
 ## WIP: drop-a-photo-to-sprite feature (branch `feature/photo-sprite`)
-**Status snapshot (2026-08-21):** branch `feature/photo-sprite` is in sync with its
-same-named remote branch. Working tree has only untracked `pacman/img/` leftovers.
-All 7 test suites green. **Next up: M5 (polish)** then land the branch on main.
+**Status snapshot (2026-08-21):** M5 (quota guard) is implemented and committed locally
+on `feature/photo-sprite` — **NOT pushed**: the user wants to test the branch in a
+real browser first. M2–M4 are on `origin/feature/photo-sprite`. All 7 test suites green
+(peru-ui 56, peru-sprite 46 checks). **Next: user browser test, then land the branch on
+main** (separate explicit step: merge into main + push main).
 **Feature**: user drops a photo into the game; it is "emoji-fied" in-browser (photo ->
 256x256 -> blur -> posterize -> median-cut to 16 flat colors) and becomes a sprite
 assignable to Pacman, a turkey, or the power pill. Photos stay local (no upload/server).
@@ -225,13 +227,23 @@ Pill: image on the glowing disc.
   clear buttons; drop-anywhere on canvas (last-used slot); file-input fallback for
   mobile; reset-to-defaults. Opened with **C** (S is the WASD down key) or the on-screen
   button; see "Done (photo-sprite M4)" above.
-- [ ] **M5** polish: previews, error toasts for non-image drops, localStorage quota
-  guard (~5MB cap; ~10-15KB per 256px 16-color PNG).
+- [x] **M5** quota guard: `SPRITE_QUOTA = 5*1024*1024` chars in photo.js; `spriteUsage()`
+  sums key+value bytes across all `SpriteData` entries; `spriteFits(slot, url)` does the
+  pre-check (re-placing the same slot swaps old bytes for new); `assignPhoto` rejects
+  with `Error("sprite storage quota exceeded")` BEFORE mutating when `hasStorage()` and
+  the new URL would exceed the quota (no-op in memory when localStorage is absent).
+  customize.js toasts the distinct message "armazenamento cheio — foto muito grande"
+  (matched on `String(err)`.indexOf("quota")) and the panel footer shows a live usage
+  meter ("usando X de 5.0 MB", `.cp-usage`, flex next to "restaurar padrões"); the meter
+  refreshes on every `refreshAll` (open panel / drop success / clear / reset). The
+  raw-storage QuotaExceededError path still degrades gracefully (persistSlot → false,
+  in-memory sprite kept). restoreSprites now reuses `allSlots()`.
+- [ ] Browser test of the finished UI (user), then **land on main**.
 
 ### Notes for the next session
-- NEXT = **M5** (preview polish, error toasts with better wording, ~5MB localStorage
-  quota cap with a "too big" toast) then land the branch on main (separate explicit
-  step: merge into main + push main).
+- M5 is committed locally but **NOT pushed** (user is testing the branch in a real
+  browser). After approval: push `feature/photo-sprite` if it moved, then the explicit
+  landing step (merge into main + push main; never push new work straight to main).
 - Panel DOM wiring is exercised headless via the fake DOM in tests/peru-ui.js, but the
   REAL-browser feel (drag-drop, file picker, toast timing, panel scroll on small
   screens) has only been code-reviewed — verify in a browser before landing.

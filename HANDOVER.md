@@ -1,6 +1,6 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-20 (post-reboot).
+> Read this first to pick up where work left off. Last updated: 2026-08-21 (photo-sprite M2/M3).
 > Keep this file updated as you go so a future session can resume.
 
 ## What this is
@@ -12,19 +12,20 @@ A modern Pac-Man remake. Theme (user-specified):
 Named **PERU MAN**.
 
 ## Where things are
-- Repo clone (git workdir for commits/pushes): `/home/mattma/Qwen3827B-Exploration`
-- Game root: `/home/mattma/Qwen3827B-Exploration/pacman/` (static site, no build step)
+- Repo clone (git workdir for commits/pushes): `/home/mattma/repos/Qwen3827B-Exploration`
+- Game root: `/home/mattma/repos/Qwen3827B-Exploration/pacman/` (static site, no build step)
 - Live URL (GitHub Pages, from `main` at repo root):
   **https://mattma1970.github.io/Qwen3827B-Exploration/pacman/**
   (Pages rebuilds ~1–2 min after each push.)
 
 ## File layout (pacman/)
-- `index.html` — loads JS in fixed order: config → utils → audio → sprites → pacman → ghost → game → main
+- `index.html` — loads JS in fixed order: config → utils → audio → sprites → photo → pacman → ghost → game → main
 - `css/style.css`
 - `js/config.js` — CELL=32, COLS/ROWS=15, MAZE grid (`#` wall, `.` pellet, `P` power pill, `M` player start, `G` turkey start), DEN (r7,c7), TUNE, TURKEYS[], SCATTER_TARGETS, PHASE_DURATIONS
 - `js/utils.js` — DIRS, DIR_NAMES, OPPOSITE, centerOf, isWall, isOpen, clamp, bfsDistances
 - `js/audio.js` — AudioFX (Web Audio SFX, created on first user gesture; M to mute)
-- `js/sprites.js` — drawPlayer (BR flag), drawTurkey, drawEyes, drawCanvaPill (official Canva wordmark, "C" fallback), drawPellet, drawMiniFlag, shadeHex
+- `js/sprites.js` — Sprites registry + spriteReady/playerSprite, drawPlayer (photo > rafa avatar > BR flag), drawTurkey (photo slot via opts.name), drawEyes, drawCanvaPill (photo > Canva wordmark, "C" fallback), drawPellet, drawMiniFlag, shadeHex
+- `js/photo.js` — emoji-fy core (posterize, medianCut) + glue: loadSourceImage, boxBlurRgba, imageToSprite, spriteSlot/spriteFor/setSprite/clearPhoto, assignPhoto, persistSlot/restoreSprites, SpriteData
 - `js/pacman.js` — Mover base (grid move; on wall hit sets dir="none" so player stops, does NOT reverse) + Player
 - `js/ghost.js` — Turkey extends Mover (AI: scatter/chase BFS + flee when frightened)
 - `js/game.js` — Game state machine, collisions, scoring, rendering
@@ -41,14 +42,18 @@ Headless tests use `node` + `vm` to load the JS in order with a canvas-2D-contex
 - pacman/tests/peru-scripted.js — pill -> fright -> gobble -> den respawn -> levelup
 - pacman/tests/peru-flee.js    — frightened turkey steers away (BFS), fan-out tie-break
 - pacman/tests/peru-buffer.js  — keypress buffering: early turns survive blocked cells; opposite key reverses at dead ends
+- pacman/tests/peru-photo.js   — pure emoji-fy core (posterize, median-cut)
+- pacman/tests/peru-sprite.js  — M2/M3 glue: registry, fallback chain, imageToSprite pipeline (stub canvas), boxBlurRgba, turkey/pill slots, persistence, boot restore, quota guard
 
-Quick loop after any JS edit (run from the repo root /home/mattma/Qwen3827B-Exploration):
+Quick loop after any JS edit (run from the repo root /home/mattma/repos/Qwen3827B-Exploration):
 ```
 node --check pacman/js/<file>.js          # syntax
 node pacman/tests/peru-smoke.js           # sanity
 node pacman/tests/peru-scripted.js        # pill/fright/gobble/levelup
 node pacman/tests/peru-flee.js            # flee direction (BFS)
 node pacman/tests/peru-buffer.js          # keypress buffering / dead-end reverse
+node pacman/tests/peru-photo.js           # emoji-fy pure core
+node pacman/tests/peru-sprite.js          # sprite registry/glue/turkey+pill slots
 ```
 (Tests reference the absolute js path, so location is fine; if you move the repo,
 update the `dir =` line at the top of each test.)
@@ -134,6 +139,38 @@ Work on local feature branches; when pushing, create the SAME-NAMED remote branc
 (`git push -u origin <branch>`). NEVER push new work to `main` directly (Pages serves
 `main`). Landing on main = explicit merge/PR afterward.
 
+## Done (photo-sprite M2/M3: sprite glue + turkey/pill slots)
+Commit `d05487b` on `feature/photo-sprite` (pushed). All functions in photo.js are
+top-level `function`/`var` (attach to the vm global) and DOM/canvas-touching code is
+guarded so headless Node stays safe.
+- `js/sprites.js`: `var Sprites = { player:null, pill:null, ghosts:{} }`,
+  `spriteReady(img)`, `playerSprite()` (photo > rafa avatar > null → hand-drawn flag).
+  `drawPlayer`/`drawMiniFlag` use `playerSprite()` (mouth-wedge clip still applies to
+  the photo). `drawTurkey(c,x,y,r,color,opts)`: if `opts.name` has a ready
+  `Sprites.ghosts[name]`, drawImage the raw square at (-1.15r, -1.15r, 2.3r, 2.3r);
+  frightened = translucent tint circle + squiggle face overlaid, then return.
+  `drawCanvaPill` uses `Sprites.pill` over the wordmark.
+- `js/photo.js` glue: `loadSourceImage` (File/Blob → createObjectURL, string URL, or
+  image-like passthrough), `boxBlurRgba` (separable, edge-clamped; manual fallback when
+  `ctx.filter` is unsupported), `imageToSprite(source,{size=256,colors=16,levels=20,blur=4})`
+  (cover-crop onto square canvas → blur → posterize → medianCut → putImageData →
+  toDataURL → new Image; stores `_spriteUrl`), `spriteSlot(name)` (case-insensitive
+  player/pill/turkey match, null if unknown), `spriteFor`, `setSprite`, `clearPhoto`,
+  `assignPhoto(slot, source, opts)` (process + assign + persist; rejects unknown slot /
+  failed load), `SpriteData` (`var`), `persistSlot` (swallows quota errors → false),
+  `restoreSprites()` (rehydrates `Sprites.*` from `localStorage` `peruman.sprite.*`
+  at boot; called at the end of photo.js, guarded by typeof Image + localStorage).
+- `js/game.js`: `renderTurkeys` passes `name: g.def.name`; title-screen turkey calls
+  pass `name: g.name`.
+- New suite `tests/peru-sprite.js` (29 checks): stub `Image` (registry of fake sources,
+  any `data:` URL loads as 256x256), localstorage stub with optional quota, canvas-ctx
+  Proxy that samples the last drawn source, and `makeRecCtx(rec)` recording ctx
+  (every method no-op, drawImage recorded, gradients get no-op addColorStop) for draw
+  tests. Gotchas baked in: coordinate asserts use `Math.abs(x-expected) < 0.1`
+  (`12*1.15` → 13.799999999999999); `String(err)` in vm yields `"Error: <msg>"` so
+  assert with `indexOf(msg) > -1`, never `=== 0`.
+- Verified: `node --check` clean; all 6 suites green.
+
 ## WIP: drop-a-photo-to-sprite feature (branch `feature/photo-sprite`)
 **Feature**: user drops a photo into the game; it is "emoji-fied" in-browser (photo ->
 256x256 -> blur -> posterize -> median-cut to 16 flat colors) and becomes a sprite
@@ -149,17 +186,9 @@ Pill: image on the glowing disc.
   Pure functions over Uint8ClampedArray, no canvas/DOM; declared as top-level `function`s
   so they attach to the vm sandbox global (const/class would NOT). Added to index.html
   after sprites.js. Tests: `tests/peru-photo.js` (11 checks).
-- [ ] **M2** glue: `imageToSprite(file, {colors, blur})` — canvas: draw File (via
-  createObjectURL/Image) onto 256x256 square (cover-crop), `ctx.filter="blur(4px)"`
-  (fallback manual box blur), getImageData, posterize(20), medianCut(16), putImageData,
-  toDataURL -> new Image. Plus sprite registry `Sprites = { player, ghosts:{name}, pill }`
-  (Image|null) in sprites.js or photo.js; `drawPlayer`/`drawMiniFlag` use
-  `Sprites.player || rafaEmojiImg` (keep existing BR-flag fallback chain). Pacman slot
-  end-to-end: drop File -> player updated + persisted to localStorage (data-URL restore
-  at boot).
-- [ ] **M3** turkey + pill slots: `drawTurkey` takes photo via opts (raw square replaces
-  turkey unit, keep bob); frightened = blue tint overlay + squiggle face on top.
-  `drawCanvaPill` prefers `Sprites.pill` over the wordmark.
+- [x] **M2** glue: committed with M3 in `d05487b` (see "Done (photo-sprite M2/M3)"
+  above).
+- [x] **M3** turkey + pill slots: committed in `d05487b`.
 - [ ] **M4** UI: customize panel (key S or button) with 6 drop zones (Pacman, 4 named
   turkeys, pill) + clear buttons; drop-anywhere on canvas (last-used slot); file-input
   fallback for mobile; reset-to-defaults.
@@ -167,13 +196,19 @@ Pill: image on the glowing disc.
   guard (~5MB cap; ~10-15KB per 256px 16-color PNG).
 
 ### Notes for the next session
+- NEXT = **M4** (UI: customize panel, drop zones, drop-anywhere, file-input fallback,
+  reset) then **M5** (previews, error toasts, ~5MB quota cap).
 - Load order is fixed: config -> utils -> audio -> sprites -> photo -> pacman -> ghost ->
-  game -> main. Tests load files in the same order they need; peru-photo.js loads ONLY photo.js.
+  game -> main. The test suites load only the files they need (peru-sprite.js:
+  config → utils → audio → sprites → photo).
 - Headless gotcha re-confirmed: top-level `function`/`var` attach to the vm sandbox;
-  `const`/`let`/`class` don't.
-- Persistence plan: localStorage data-URLs keyed per slot; restore into `Sprites.*` at boot
-  (guard for headless: typeof localStorage).
-- All 5 suites currently green (smoke, scripted, flee, buffer, photo).
+  `const`/`let`/`class` don't. (New glue code follows this: `var Sprites`, `var SpriteData`.)
+- Persistence: localStorage data-URLs keyed `peruman.sprite.<slot>`; `restoreSprites()`
+  rehydrates `Sprites.*` at boot (guarded by typeof Image + typeof localStorage).
+  `persistSlot` swallows QuotaExceededError (returns false) so assignment still works.
+- All 6 suites currently green (smoke, scripted, flee, buffer, photo, sprite).
+- Untracked leftovers in `pacman/img/` (rafa.png, rafa_preview.png, framings.png)
+  are NOT part of this feature — optional cleanup.
 
 ## Idea backlog (optional, not requested)
 - Could add a small "CANVA" text under the pill (redundant now that the wordmark is shown).

@@ -119,5 +119,15 @@ source is a 400×400 headshot so center-crop is fine).
 - `pacman/img/` was untracked; contains leftover `rafa.png`, `rafa_preview.png`, `framings.png`
   from earlier attempts — candidate for cleanup.
 
+## Done (immediate turn-around / reverse)
+User: turning around required a wall stop. Was intentional old design
+(peru-buffer test section 2). Fix in `Mover.update()` (js/pacman.js): if
+`want === OPPOSITE[this.dir]` while moving, flip `dir` instantly mid-cell
+(grid-safe, retraces the same line) — before the wait/decide logic.
+Perpendicular buffering unchanged (honored at first open cell). Turkeys are
+unaffected (they never set `want`; they override decide()).
+peru-buffer.js section 2 rewritten: reversed at once + backed away from the
+dead end (never hits its wall). All 4 suites pass.
+
 ## Idea backlog (optional, not requested)
 - Could add a small "CANVA" text under the pill (redundant now that the wordmark is shown).

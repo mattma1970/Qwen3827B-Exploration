@@ -45,17 +45,15 @@ for (let i = 0; i < 300 && turnC === -1; i++) {
 console.log("early buffered turn (pressed up, blocked at c2,c3):");
 assert(turnC === 4, "buffered 'up' honored at c=4, first cell where it is open (turned at c=" + turnC + ")");
 
-// 2) buffered reverse: press the OPPOSITE while moving right toward a dead end.
-//    Classic behavior: keep going, stop at the wall, then reverse.
+// 2) immediate reverse: press the OPPOSITE mid-cell — the player must turn
+//    around at once and back away from the dead end (never stop at its wall).
 const q = makePlayer(10, 4, "right"); // moving right, dead end at (10,7)
 q.want = "left"; // keypress arrives mid-cell
-let reversed = false;
-for (let i = 0; i < 300; i++) {
-  q.update(1 / 60);
-  if (q.dir === "left") { reversed = true; break; }
-}
-console.log("buffered reverse at dead end:");
-assert(reversed, "opposite key kept until the wall, then reversed (dir=" + q.dir + " at (r" + q.r + ",c" + q.c + "))");
+q.update(1 / 60);
+console.log("immediate reverse (mid-cell):");
+assert(q.dir === "left" && q.want === "none", "opposite key reverses at once (" + q.dir + " at (r" + q.r + ",c" + q.c + "))");
+for (let i = 0; i < 30; i++) q.update(1 / 60);
+assert(q.c < 4, "player backed away from the dead end (now c=" + q.c + "; its wall is c=7)");
 
 // 3) normal same-direction press is consumed (no stale state, no self-turn)
 const w = makePlayer(12, 7, "right");

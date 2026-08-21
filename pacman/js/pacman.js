@@ -1,7 +1,8 @@
 // PERU MAN - grid movement base class + the player (BR-flag pacman).
 
-// Grid-bound mover: walks cell centers, turns when buffered, never reverses
-// unless blocked. Subclasses override decide() to set this.dir at each center.
+// Grid-bound mover: walks cell centers, turns when buffered, and honors a
+// buffered reverse immediately (grid-safe: it retraces the same line).
+// Subclasses override decide() to set this.dir at each center.
 class Mover {
   constructor(grid, r, c, speed) {
     this.grid = grid;
@@ -20,6 +21,13 @@ class Mover {
   setSpeed(s) { this.speed = s; }
 
   update(dt) {
+    // Buffered reverse is applied at once, even mid-cell, instead of waiting
+    // for a wall stop — turning around should feel instant.
+    if (this.dir !== "none" && this.want !== "none" &&
+        this.want === OPPOSITE[this.dir]) {
+      this.dir = this.want;
+      this.want = "none";
+    }
     if (this.waiting) {
       if (this.want !== "none" && isOpen(this.grid, this.r + DIRS[this.want].dr, this.c + DIRS[this.want].dc)) {
         this.dir = this.want;
@@ -75,8 +83,9 @@ class Mover {
         this.dir = w;
         this.want = "none";
       }
-      // otherwise keep buffering until a cell lets us honor it (or a wall
-      // stop lets us reverse). New keypresses simply overwrite this value.
+      // otherwise keep buffering until a cell lets us honor it. (Reverse
+      // presses are handled immediately in update().) New keypresses simply
+      // overwrite this value.
     }
     const dv = DIRS[this.dir];
     if (!isOpen(this.grid, this.r + dv.dr, this.c + dv.dc)) {

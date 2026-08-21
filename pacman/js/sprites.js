@@ -1,6 +1,20 @@
 // PERU MAN - all sprite drawing: emoji-ified Rafa player (BR-flag fallback),
 // turkeys, Canva power pill, pellets.
 
+// Sprite registry: user photos (emoji-fied in-browser, see photo.js) override
+// the hand-drawn art per slot. `ghosts` is keyed by turkey name. Values are
+// HTMLImageElement or null. `var` so it lands on the global (headless tests).
+var Sprites = { player: null, pill: null, ghosts: {} };
+
+function spriteReady(img) {
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+function playerSprite() {
+  return spriteReady(Sprites.player) ? Sprites.player
+    : (rafaEmojiReady() ? rafaEmojiImg : null);
+}
+
 function shadeHex(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
   const r = clamp((n >> 16) + amt, 0, 255);
@@ -23,9 +37,11 @@ function rafaEmojiReady() {
   return !!(rafaEmojiImg && rafaEmojiImg.complete && rafaEmojiImg.naturalWidth > 0);
 }
 
-// Pac-man face: the emoji avatar clipped to the mouth wedge (BR flag before load)
+// Pac-man face: photo sprite (if assigned) -> emoji avatar -> hand-drawn BR flag,
+// clipped to the mouth wedge.
 function drawPlayer(c, x, y, r, mouth, facing) {
   const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[facing] || 0;
+  const img = playerSprite();
   c.save();
   c.translate(x, y);
   c.rotate(ang);
@@ -33,10 +49,10 @@ function drawPlayer(c, x, y, r, mouth, facing) {
   c.moveTo(0, 0);
   c.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
   c.closePath();
-  if (rafaEmojiReady()) {
+  if (img) {
     c.save();
     c.clip();
-    c.drawImage(rafaEmojiImg, -r, -r, r * 2, r * 2);
+    c.drawImage(img, -r, -r, r * 2, r * 2);
     c.restore();
     c.restore();
     return;
@@ -67,7 +83,9 @@ function drawPlayer(c, x, y, r, mouth, facing) {
   c.restore();
 }
 
-// A turkey: colored body, fanned tail, red wattle, orange beak
+// A turkey: colored body, fanned tail, red wattle, orange beak.
+// If a photo is assigned to this turkey (Sprites.ghosts[name]) the raw square
+// image replaces the whole hand-drawn turkey as one unit (bob/flip kept).
 function drawTurkey(c, x, y, r, color, opts) {
   const o = opts || {};
   const fright = o.fright;
@@ -76,6 +94,25 @@ function drawTurkey(c, x, y, r, color, opts) {
   c.translate(x, y);
   if (o.facing === "left") c.scale(-1, 1);
   if (o.bob) c.translate(0, o.bob);
+
+  const photo = o.name ? Sprites.ghosts[o.name] : null;
+  if (o.name && spriteReady(photo)) {
+    c.drawImage(photo, -r * 1.15, -r * 1.15, r * 2.3, r * 2.3);
+    if (fright) {
+      c.fillStyle = flick ? "rgba(248,249,255,0.45)" : "rgba(91,127,255,0.55)";
+      c.beginPath();
+      c.arc(0, 0, r * 1.15, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = flick ? "#5b7fff" : "#1c2a6b";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(r * 0.1, -r * 0.45); c.lineTo(r * 0.4, -r * 0.2); c.lineTo(r * 0.1, 0);
+      c.lineTo(r * 0.4, r * 0.25); c.lineTo(r * 0.1, r * 0.5);
+      c.stroke();
+    }
+    c.restore();
+    return;
+  }
 
   const body = fright ? (flick ? "#f8f9ff" : "#5b7fff") : color;
   const tail = fright ? (flick ? "#d8dbee" : "#3b53c9") : shadeHex(color, -55);
@@ -201,7 +238,7 @@ function drawCanvaPill(c, x, y, r, t) {
   c.strokeStyle = "rgba(100,32,255,0.5)";
   c.stroke();
 
-  const img = canvaWordmarkImg;
+  const img = spriteReady(Sprites.pill) ? Sprites.pill : canvaWordmarkImg;
   if (img && img.complete && img.naturalWidth > 0) {
     // full official "Canva" wordmark, scaled to sit inside the disc
     const w = r * 1.95;
@@ -246,14 +283,15 @@ function drawPellet(c, x, y) {
   c.fill();
 }
 
-// Life icon: mini emoji avatar circle (BR flag before load)
+// Life icon: mini photo/avatar circle (BR flag before load)
 function drawMiniFlag(c, x, y, r) {
   c.save();
   c.beginPath();
   c.arc(x, y, r, 0, Math.PI * 2);
   c.clip();
-  if (rafaEmojiReady()) {
-    c.drawImage(rafaEmojiImg, x - r, y - r, r * 2, r * 2);
+  const img = playerSprite();
+  if (img) {
+    c.drawImage(img, x - r, y - r, r * 2, r * 2);
     c.restore();
     return;
   }

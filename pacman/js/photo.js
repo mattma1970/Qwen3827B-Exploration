@@ -97,3 +97,188 @@ function medianCut(rgba, w, h, colors) {
 
   return { data, palette };
 }
+
+// ---------------------------------------------------------------------------
+// Glue (browser only): photo -> emoji-fied 256px sprite -> Sprites registry
+// -> localStorage. Guarded so headless vm (no DOM) can load this safely.
+// ---------------------------------------------------------------------------
+
+var SPRITE_SIZE = 256;
+var SPRITE_LS_PREFIX = "peruman.sprite.";
+var SpriteData = {}; // slot -> data URL of the assigned photo sprite
+
+// Normalize a slot name: "player" | "pill" | a turkey name (case-insensitive).
+// Returns null for unknown slots (needs TURKEYS from config.js when called).
+function spriteSlot(name) {
+  const s = String(name);
+  if (s === "player" || s === "pill") return s;
+  if (typeof TURKEYS === "undefined") return null;
+  for (const d of TURKEYS) {
+    if (d.name.toLowerCase() === s.toLowerCase()) return d.name;
+  }
+  return null;
+}
+
+function spriteFor(slot) {
+  const s = spriteSlot(slot);
+  if (!s) return null;
+  if (s === "player") return Sprites.player;
+  if (s === "pill") return Sprites.pill;
+  return Sprites.ghosts[s] || null;
+}
+
+function setSprite(slot, img) {
+  const s = spriteSlot(slot);
+  if (!s) return false;
+  if (s === "player") Sprites.player = img;
+  else if (s === "pill") Sprites.pill = img;
+  else Sprites.ghosts[s] = img;
+  return true;
+}
+
+function clearPhoto(slot) {
+  const s = spriteSlot(slot);
+  if (!s) return false;
+  setSprite(s, null);
+  delete SpriteData[s];
+  if (hasStorage()) {
+    try { localStorage.removeItem(SPRITE_LS_PREFIX + s); } catch (e) {}
+  }
+  return true;
+}
+
+// Load a File/Blob (object URL), a data/URL string, or pass through an already
+// loaded image-like object. Resolves an image element with natural dimensions.
+function loadSourceImage(source) {
+  const isFileOrBlob = (typeof File !== "undefined" && source instanceof File) ||
+    (typeof Blob !== "undefined" && source instanceof Blob);
+  if (isFileOrBlob) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(source);
+      const img = new Image();
+      img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("could not load image")); };
+      img.src = url;
+    });
+  }
+  if (typeof source === "string") {
+    return new Promise(function (resolve, reject) {
+      const img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error("could not load image")); };
+      img.src = source;
+    });
+  }
+  return Promise.resolve(source);
+}
+
+// Two-pass separable box blur over RGBA (edge-clamped). Used when ctx.filter
+// (canvas blur) is unavailable.
+function boxBlurRgba(rgba, w, h, radius) {
+  if (!radius || radius < 1) return rgba;
+  const tmp = new Uint8ClampedArray(rgba.length);
+  const out = new Uint8ClampedArray(rgba.length);
+  const pass = function (src, dst, horizontal) {
+    for (let i = 0; i < w * h; i++) {
+      const x = i % w, y = (i / w) | 0;
+      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      for (let k = -radius; k <= radius; k++) {
+        const px = horizontal ? x + k : x;
+        const py = horizontal ? y : y + k;
+        if (px < 0 || py < 0 || px >= w || py >= h) continue;
+        const j = (py * w + px) * 4;
+        r += src[j]; g += src[j + 1]; b += src[j + 2]; a += src[j + 3]; n++;
+      }
+      dst[i * 4] = r / n; dst[i * 4 + 1] = g / n; dst[i * 4 + 2] = b / n; dst[i * 4 + 3] = a / n;
+    }
+  };
+  pass(rgba, tmp, true);
+  pass(tmp, out, false);
+  return out;
+}
+
+// Emoji-fy any photo: cover-crop to a square canvas, blur, posterize(20),
+// median-cut to 16 flat colors. v1 draws the photo AS-IS (no masking/crop
+// beyond the square). Resolves an Image whose src is the PNG data URL.
+function imageToSprite(source, opts) {
+  const o = opts || {};
+  const size = o.size || SPRITE_SIZE;
+  const colors = o.colors || 16;
+  const levels = o.levels || 20;
+  const blurPx = o.blur === undefined ? 4 : o.blur;
+  return loadSourceImage(source).then(function (srcImg) {
+    const sw = srcImg.naturalWidth || srcImg.width;
+    const sh = srcImg.naturalHeight || srcImg.height;
+    if (!sw || !sh) throw new Error("source image has no dimensions");
+    const cv = document.createElement("canvas");
+    cv.width = size; cv.height = size;
+    const ctx = cv.getContext("2d");
+    const hasFilter = typeof ctx.filter === "string";
+    const scale = Math.max(size / sw, size / sh);
+    const dw = sw * scale, dh = sh * scale;
+    const dx = (size - dw) / 2, dy = (size - dh) / 2;
+    if (blurPx > 0 && hasFilter) {
+      ctx.filter = "blur(" + blurPx + "px)";
+      ctx.drawImage(srcImg, dx, dy, dw, dh);
+      ctx.filter = "none";
+    } else {
+      ctx.drawImage(srcImg, dx, dy, dw, dh);
+    }
+    let rgba = ctx.getImageData(0, 0, size, size).data;
+    if (blurPx > 0 && !hasFilter) rgba = boxBlurRgba(rgba, size, size, blurPx);
+    rgba = posterize(rgba, levels);
+    const q = medianCut(rgba, size, size, colors);
+    if (typeof ImageData !== "undefined") ctx.putImageData(new ImageData(q.data, size, size), 0, 0);
+    const url = cv.toDataURL("image/png");
+    const img = new Image();
+    img.src = url;
+    img._spriteUrl = url;
+    return img;
+  });
+}
+
+// Persistence: data URL per slot in localStorage (photos never leave the machine).
+function hasStorage() {
+  try { return typeof localStorage !== "undefined" && !!localStorage; } catch (e) { return false; }
+}
+
+function persistSlot(slot) {
+  if (!hasStorage()) return false;
+  const url = SpriteData[slot];
+  if (!url) return false;
+  try { localStorage.setItem(SPRITE_LS_PREFIX + slot, url); return true; } catch (e) { return false; }
+}
+
+// End-to-end: process the photo, assign it to the slot, persist it.
+// Resolves the slot name; rejects on unknown slot or unreadable image.
+function assignPhoto(slot, source, opts) {
+  const s = spriteSlot(slot);
+  if (!s) return Promise.reject(new Error("unknown sprite slot: " + slot));
+  return imageToSprite(source, opts).then(function (img) {
+    setSprite(s, img);
+    SpriteData[s] = img._spriteUrl || (typeof img.src === "string" ? img.src : "");
+    persistSlot(s);
+    return s;
+  });
+}
+
+// At boot: re-hydrate Sprites from localStorage so custom sprites survive reloads.
+function restoreSprites() {
+  if (typeof Image === "undefined" || !hasStorage()) return;
+  const slots = ["player", "pill"];
+  if (typeof TURKEYS !== "undefined") {
+    for (const d of TURKEYS) slots.push(d.name);
+  }
+  for (const s of slots) {
+    let url = null;
+    try { url = localStorage.getItem(SPRITE_LS_PREFIX + s); } catch (e) {}
+    if (!url) continue;
+    const img = new Image();
+    img.src = url;
+    img._spriteUrl = url;
+    setSprite(s, img);
+    SpriteData[s] = url;
+  }
+}
+
+if (typeof Image !== "undefined") restoreSprites();

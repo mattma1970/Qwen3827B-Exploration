@@ -262,6 +262,7 @@ class Game {
         flick: flick,
         facing: g.fright ? "right" : facing,
         bob: g.released ? 0 : bob,
+        name: g.def.name,
       });
     }
   }
@@ -375,7 +376,7 @@ class Game {
     drawCanvaPill(c, S * 0.28, mid + 40, 12, this.t);
     for (let i = 0; i < TURKEYS.length; i++) {
       const g = TURKEYS[i];
-      drawTurkey(c, S * 0.62, mid - 62 + i * 40, 14, g.color, { bob: Math.sin(this.t * 4 + i) * 3 });
+      drawTurkey(c, S * 0.62, mid - 62 + i * 40, 14, g.color, { bob: Math.sin(this.t * 4 + i) * 3, name: g.name });
     }
     c.textAlign = "center";
     const grad = c.createLinearGradient(S * 0.15, 0, S * 0.85, 0);

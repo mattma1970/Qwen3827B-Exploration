@@ -116,8 +116,8 @@ source is a 400×400 headshot so center-crop is fine).
 - `js/sprites.js`: `rafaEmojiImg` loads `img/rafa_emoji.png` (guarded by `typeof Image`.
   headless-safe). `drawPlayer` clips the mouth wedge then drawImage's the avatar inside it
   (BR flag hand-drawn fallback until loaded — same pattern as the Canva wordmark).
-  `drawMiniFlag` (life icons) does the same. Title-screen bobber at game.js:374 picks it up
-  for free (calls drawPlayer).
+   `drawMiniFlag` (life icons) does the same. Title-screen bobber at game.js:375 picks it up
+   for free (calls drawPlayer).
 - Verified: all 4 test suites pass (paths updated to /home/mattma/repos/... after the repo
   moved), plus a vm check that the image branch drawImage's at (-r,-r,2r,2r) for the player
   and (x-r,y-r,2r,2r) for life icons.
@@ -172,6 +172,9 @@ guarded so headless Node stays safe.
 - Verified: `node --check` clean; all 6 suites green.
 
 ## WIP: drop-a-photo-to-sprite feature (branch `feature/photo-sprite`)
+**Status snapshot (2026-08-21):** branch `feature/photo-sprite` is clean and in sync with
+its same-named remote branch (upstream set). Working tree has only untracked `pacman/img/`
+leftovers. All 6 test suites green. **Next up: M4 (UI), then M5 (polish).**
 **Feature**: user drops a photo into the game; it is "emoji-fied" in-browser (photo ->
 256x256 -> blur -> posterize -> median-cut to 16 flat colors) and becomes a sprite
 assignable to Pacman, a turkey, or the power pill. Photos stay local (no upload/server).

@@ -1,10 +1,11 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-22 (**swipe steering**
-> implemented on `feature/swipe-controls`; camera capture **merged to main** via PR #4, merge
-> `97fa5b1`). Keep this file updated as you go so a future session can resume.
+> Read this first to pick up where work left off. Last updated: 2026-08-22 (**swipe steering
+> merged to main** via PR #5, merge `7c1c065`; camera capture merged via PR #4, merge `97fa5b1`;
+> AGENTS.md now allows `gh pr merge` ONLY on explicit user instruction, gated on a full
+> passing test run). Keep this file updated as you go so a future session can resume.
 
-## Swipe steering (pacman-react/) — CURRENT, branch `feature/swipe-controls`
+## Swipe steering (pacman-react/) — DONE, MERGED to main (PR #5, merge `7c1c065`)
 Goal (user): the on-screen DPad "doesn't work well" on the phone — replace it with
 **swipe gestures**: touch the screen and move the finger; each new direction of travel turns
 Pac-Man that way; a stationary finger changes nothing; the DPad arrows come off the screen.

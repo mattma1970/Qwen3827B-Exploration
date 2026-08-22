@@ -1,10 +1,51 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-21 (React conversion
-> **merged to main** via PR #3; **camera capture** done on `feature/camera-photo`, PR #4 open).
-> Keep this file updated as you go so a future session can resume.
+> Read this first to pick up where work left off. Last updated: 2026-08-22 (**swipe steering**
+> implemented on `feature/swipe-controls`; camera capture **merged to main** via PR #4, merge
+> `97fa5b1`). Keep this file updated as you go so a future session can resume.
 
-## Camera capture (pacman-react/) — CURRENT, branch `feature/camera-photo`, PR #4 open
+## Swipe steering (pacman-react/) — CURRENT, branch `feature/swipe-controls`
+Goal (user): the on-screen DPad "doesn't work well" on the phone — replace it with
+**swipe gestures**: touch the screen and move the finger; each new direction of travel turns
+Pac-Man that way; a stationary finger changes nothing; the DPad arrows come off the screen.
+Implemented on `feature/swipe-controls` (fresh branch off `origin/main` @ `97fa5b1`, the PR #4
+merge):
+- **`src/game/swipe.ts`** (new, pure): `SwipeTracker` — `start(x,y)`, `move(x,y)` → `Dir|null`,
+  `end()`, `fired` flag, `SWIPE_THRESHOLD=20` css px. Each fire RE-ANCHORS to the current
+  position, so the finger must travel another 20 px before the next turn registers (jitter
+  filter, no repeat storms); dominant axis wins, `|dx|==|dy|` → horizontal; screen y grows down.
+  Nothing runs at import time (node/vitest safe).
+- **`GameBoard.tsx`**: the old canvas-only ONE-SHOT pointer handlers (lift the finger to steer
+  again; tap = half-screen left/right) are GONE. New native document-level touch gesture:
+  `trackId` on first non-interactive `touchstart`; `touchmove` (registered `passive:false`) →
+  `tracker.move()` → `game.setWant(dir)` (skipped while `game.paused`); `preventDefault()`
+  during an active steer stops page scroll; `touchend` with no fired direction = TAP →
+  `primaryAction()` (no-op except title / gameover>1 → start & replay). Multi-touch: only the
+  first touch id is tracked. Interactive starts are excluded via
+  `INTERACTIVE_SEL = 'button, a, input, select, textarea, [role="button"], .customize-panel,
+  .cam-overlay'` so the hamburger, pause pill, hint ☰ span, panel and camera overlay keep their
+  own touches. `AudioFX.ensure()` on gesture start + first steer (iOS audio unlock).
+  Note: mouse-click steering on desktop (old pointer handlers) is intentionally dropped —
+  desktop has the keyboard.
+- **`TouchControls.tsx`**: DPad removed; only the ▶/❚❚ start-pause pill remains (same title/
+  gameover→`primaryAction()` else `togglePause()` logic; 500 ms label refresh kept; still gated
+  on coarse-pointer/touch).
+- **`style.css`**: `.dpad`/`.dpad-row`/`.dbtn` → `.pause-btn` (64x52 pill); ≤520 px `.wrap`
+  padding-bottom 180 → 96 px (smaller fixed control).
+- **Copy**: App.tsx hints → "deslize o dedo na tela para mover · parado não vira" (mobile) and
+  "no celular: deslize o dedo na tela para mover" (desktop); game.ts title → "ENTER, toque ou
+  uma seta para jogar", gameover → "Enter / toque na tela para jogar de novo".
+- **`tests/peru-swipe.test.ts`**: 13 cases (pre-start/post-end null; isActive; sub-threshold
+  wiggle → tap; 4 axes; exact threshold boundary; dominant axis; diagonal tie → horizontal;
+  re-anchor + re-fire; 4-direction no-lift gesture; instant U-turn; stationary finger silent;
+  clean restart; custom threshold).
+**Verify: 55 tests / 8 files green; `npm run build` clean (~184 kB js / 61 kB gzip).**
+Phone test: dev server (:5173) → swipe on the board (or anywhere) to steer; keep the finger
+down and wiggle to turn corners; stationary = nothing; tap = start.
+NOTE: the local repo had been reset to a pre-React-conversion `main` with sources missing
+(stale untracked `pacman-react/dist` only); fixed by `git pull --ff-only` to `97fa5b1`.
+
+## Camera capture (pacman-react/) — DONE, MERGED to main (PR #4, merge `97fa5b1`)
 Goal (user): a **"take a photo with the camera and use it"** option in the personalize panel.
 Done on `feature/camera-photo` (from `origin/main` @ `7b0a207`), commit `c9626c9`, pushed:
 - `src/game/camera.ts`: `isCameraSupported()` + `captureFrame(video, maxDim=1024)` — draws the
@@ -27,9 +68,9 @@ Done on `feature/camera-photo` (from `origin/main` @ `7b0a207`), commit `c9626c9
 - `tests/peru-camera.test.ts`: 12 tests (support detection ×4; data-URL shape, downscale
   1920x1080→1024x576 and portrait, custom maxDim, no-upscale, 0x0 → null + no canvas created,
   no-ctx → null) via `vi.stubGlobal` of `navigator` and `document.createElement`.
-**Full suite: 41 tests / 7 files green; `npm run build` clean (~184 kB js / 60.7 kB gzip).**
-**PR #4 open for MANUAL merge** (AGENTS.md: agents never auto-merge):
-https://github.com/mattma1970/Qwen3827B-Exploration/pull/4
+**Landed on main**: user manually merged PR #4 (merge `97fa5b1`,
+https://github.com/mattma1970/Qwen3827B-Exploration/pull/4); `origin/main` @ `97fa5b1`
+contains the camera feature. (Suite at merge time: 42 tests / 8 files, ~184 kB js.)
 Phone test: camera needs https/localhost → `npm run dev -- --host` from `pacman-react/`,
 port-forward, open Personalizar (hamburger), tap **foto** on a slot.
 
@@ -75,7 +116,7 @@ build from the vanilla one.
 
 **Verify loop (from `pacman-react/`):**
 ```
-npm test          # vitest run (7 suites, 41 tests)
+npm test          # vitest run (8 suites, 55 tests)
 npm run build     # tsc && vite build
 ```
 This is a remote server (user can't easily open a browser; local http.server OOM'd) — rely on

@@ -67,7 +67,7 @@ export default function App() {
       <p className="hint">
         {isMobile ? (
           <>
-            deslize no tabuleiro ou use o direcional para mover
+            deslize o dedo na tela para mover &middot; parado n&atilde;o vira
             <br />
             <span className="menu" role="button" onClick={openMenu}>
               &#9776;
@@ -80,7 +80,7 @@ export default function App() {
           <>
             Setas / WASD move &middot; P pausa &middot; M som &middot; Enter come&ccedil;a
             <br />
-            no celular: deslize no tabuleiro ou use o direcional
+            no celular: deslize o dedo na tela para mover
             <br />
             Pilulas de poder: Canva &middot; Ghosts: 4 perus
             <br />

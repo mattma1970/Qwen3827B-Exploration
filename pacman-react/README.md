@@ -42,7 +42,9 @@ suites run in plain node. The sprite glue suite stubs `Image`/`document`/`canvas
 | P | Pause |
 | M | Mute |
 | C | Customize (drop a photo sprite) |
-| Swipe / tap board + on-screen arrows | Mobile steering |
+| Swipe anywhere on screen | Mobile steering (finger direction turns Pac-Man; stationary finger = nothing) |
+| Tap screen | Mobile start / replay |
+| On-screen ▶ / ❚❚ button | Mobile start / pause (the old DPad arrows are gone) |
 
 ## Layout
 
@@ -50,13 +52,13 @@ suites run in plain node. The sprite glue suite stubs `Image`/`document`/`canvas
 pacman-react/
   src/main.tsx            React root
   src/App.tsx             shell: board + touch controls + customize panel
-  src/style.css           styles (incl. mobile / touch DPad)
+  src/style.css           styles (incl. mobile / touch controls)
   src/components/
-    GameBoard.tsx         canvas, DPR sizing, rAF loop, keyboard + swipe input
-    TouchControls.tsx     on-screen DPad (pointer: coarse / ontouchstart only)
+    GameBoard.tsx         canvas, DPR sizing, rAF loop, keyboard + touch gesture input
+    TouchControls.tsx     pause/start pill (pointer: coarse / ontouchstart only)
     CustomizePanel.tsx    6 photo-sprite drop zones (+ file-picker fallback, reset)
   src/game/               engine, ported 1:1 from the vanilla js/
-    config.ts utils.ts audio.ts sprites.ts
+    config.ts utils.ts audio.ts sprites.ts swipe.ts
     photoSlots.ts photo.ts pacman.ts ghost.ts game.ts
   public/img/rafa_emoji.png
   tests/                  vitest suites (ported from pacman/tests/)

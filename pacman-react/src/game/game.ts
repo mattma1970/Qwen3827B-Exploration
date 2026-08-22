@@ -389,7 +389,7 @@ export class Game {
       if (this.stateT > 1) {
         c.fillStyle = "#fff";
         c.font = "bold 14px monospace";
-        c.fillText("Enter / qualquer seta para jogar de novo", mid, mid + 44);
+        c.fillText("Enter / toque na tela para jogar de novo", mid, mid + 44);
       }
     }
   }
@@ -427,7 +427,7 @@ export class Game {
     if ((this.t * 2) % 1 < 0.6) {
       c.fillStyle = "#fff";
       c.font = "bold 16px monospace";
-      c.fillText("ENTER ou uma seta para jogar", mid, mid + 156);
+        c.fillText("ENTER, toque ou uma seta para jogar", mid, mid + 156);
     }
   }
 }

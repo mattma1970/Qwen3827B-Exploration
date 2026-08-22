@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { CELL, COLS } from "../game/config";
 import { Game } from "../game/game";
 import { AudioFX } from "../game/audio";
+import { SwipeTracker } from "../game/swipe";
 import type { Dir } from "../game/utils";
 
 const SIZE = COLS * CELL;
@@ -26,8 +27,6 @@ interface Props {
   // drop-anywhere: a photo dropped on the canvas goes to the last-used slot
   onCanvasDrop?: (f: File | null) => void;
 }
-
-const SWIPE_THRESHOLD = 24; // px of travel before a swipe counts as a direction
 
 export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop }: Props) {
   const onCanvasDropRef = useRef(onCanvasDrop);
@@ -98,43 +97,72 @@ export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop }: P
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // touch: swipe to steer (one direction per gesture) + tap = left/right steer
-  // or start (title/gameover), matching the desktop tap behavior.
-  const gesture = useRef<{ x: number; y: number; swiped: boolean } | null>(null);
+  // touch: continuous steering anywhere on the screen. While the finger is
+  // down, each chunk of travel in a new dominant axis steers Pac-Man
+  // (SwipeTracker re-anchors per turn); a stationary finger does nothing;
+  // a quick tap (no travel) starts / replays on title & gameover.
+  // Touches that begin on interactive UI (buttons, the customize panel, the
+  // camera overlay) are left alone — they keep their own behavior.
+  const INTERACTIVE_SEL =
+    'button, a, input, select, textarea, [role="button"], .customize-panel, .cam-overlay';
 
-  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const game = gameRef.current;
-    if (!game) return;
-    AudioFX.ensure();
-    gesture.current = { x: e.clientX, y: e.clientY, swiped: false };
-  };
+  useEffect(() => {
+    const tracker = new SwipeTracker();
+    let touchId: number | null = null;
 
-  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const g = gesture.current;
-    const game = gameRef.current;
-    if (!g || g.swiped || !game) return;
-    const dx = e.clientX - g.x;
-    const dy = e.clientY - g.y;
-    if (Math.hypot(dx, dy) < SWIPE_THRESHOLD) return;
-    g.swiped = true;
-    const dir: Dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
-    game.setWant(dir);
-  };
+    const isInteractive = (t: EventTarget | null): boolean =>
+      t instanceof Element && t.closest(INTERACTIVE_SEL) !== null;
 
-  const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const game = gameRef.current;
-    const g = gesture.current;
-    gesture.current = null;
-    if (!game || !g || g.swiped) return;
-    // a tap (no meaningful travel): start, or steer left/right by half
-    const canvas = canvasRef.current;
-    if (game.state === "title" || game.state === "gameover") {
-      game.primaryAction();
-      return;
-    }
-    const rect = canvas ? canvas.getBoundingClientRect() : null;
-    if (rect) game.setWant(e.clientX - rect.left < rect.width / 2 ? "left" : "right");
-  };
+    const trackedTouch = (e: TouchEvent): Touch | undefined =>
+      Array.from(e.changedTouches).find((tc) => tc.identifier === touchId);
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (touchId !== null || isInteractive(e.target)) return;
+      const tc = e.changedTouches[0];
+      touchId = tc.identifier;
+      tracker.start(tc.clientX, tc.clientY);
+      AudioFX.ensure();
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchId === null) return;
+      // active steer: keep the page from scrolling with the swipe
+      e.preventDefault();
+      const tc = trackedTouch(e);
+      if (!tc) return;
+      const dir = tracker.move(tc.clientX, tc.clientY);
+      if (!dir) return;
+      const game = gameRef.current;
+      if (!game || game.paused) return;
+      AudioFX.ensure();
+      game.setWant(dir);
+    };
+
+    const onFinish = (e: TouchEvent, asTap: boolean) => {
+      if (touchId === null) return;
+      const tc = trackedTouch(e);
+      if (!tc) return; // a different finger lifted
+      touchId = null;
+      const fired = tracker.fired;
+      tracker.end();
+      // a release without any travel is a tap: start or replay
+      if (asTap && !fired) gameRef.current?.primaryAction();
+    };
+
+    const onTouchEnd = (e: TouchEvent) => onFinish(e, true);
+    const onTouchCancel = (e: TouchEvent) => onFinish(e, false);
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchCancel);
+    };
+  }, []);
 
   return (
     <div className="canvas-wrap">
@@ -142,9 +170,6 @@ export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop }: P
         ref={canvasRef}
         width={SIZE}
         height={SIZE}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();

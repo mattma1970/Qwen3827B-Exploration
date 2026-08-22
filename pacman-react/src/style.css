@@ -302,7 +302,7 @@ canvas { display: block; }
   position: fixed;
   top: 10px;
   left: 10px;
-  /* above the dpad (40), below the open panel (50, which has its own close ×) */
+  /* above the pause pill (40), below the open panel (50, which has its own close ×) */
   z-index: 45;
   width: 44px;
   height: 44px;
@@ -332,8 +332,8 @@ canvas { display: block; }
 }
 
 @media (max-width: 520px) {
-  /* bottom padding clears the fixed DPad (~168px tall + 12px gap) */
-  .wrap { padding: 10px 8px 180px; }
+  /* bottom padding clears the fixed pause pill (~52px tall + 12px gap) */
+  .wrap { padding: 10px 8px 96px; }
   .logo { font-size: 30px; letter-spacing: 4px; }
   .hint { font-size: 11px; line-height: 1.6; }
 }
@@ -348,29 +348,18 @@ canvas { display: block; }
   -webkit-user-select: none;
   touch-action: none;
 }
-.dpad {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.dpad-row {
-  display: flex;
-  gap: 6px;
-}
-.dbtn {
-  width: 58px;
-  height: 48px;
-  font-size: 18px;
-  border-radius: 12px;
+/* single play/pause pill (the DPad arrows are gone — steering is a screen
+   swipe; see GameBoard's touch gesture) */
+.pause-btn {
+  width: 64px;
+  height: 52px;
+  font-size: 16px;
+  border-radius: 999px;
   border: 1px solid #3d3d85;
   background: rgba(35, 35, 90, 0.75);
   color: #cdd3ff;
   backdrop-filter: blur(2px);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.dbtn:active { background: #2e2e75; }
-.dbtn.mid {
-  width: 58px;
-  font-size: 14px;
-}
+.pause-btn:active { background: #2e2e75; }

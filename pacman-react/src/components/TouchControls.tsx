@@ -1,10 +1,10 @@
-// PERU MAN (React) - on-screen touch controls (mobile fallback):
-// a DPad for steering, a pause button and a start button. Only rendered on
-// touch devices (coarse pointer); desktop users keep the keyboard.
+// PERU MAN (React) - on-screen play/pause button (mobile). Steering is done by
+// swiping anywhere on the screen (GameBoard's touch gesture), so this only
+// keeps the start/pause toggle, centered at the bottom. Only rendered on touch
+// devices (coarse pointer); desktop users keep the keyboard (P).
 
 import { useEffect, useState } from "react";
 import type { Game } from "../game/game";
-import type { Dir } from "../game/utils";
 import { AudioFX } from "../game/audio";
 
 interface Props {
@@ -30,35 +30,21 @@ export default function TouchControls({ game }: Props) {
 
   if (!isTouch) return null;
 
-  const steer = (dir: Dir) => {
-    if (!game) return;
-    AudioFX.ensure();
-    game.setWant(dir);
-  };
-
   return (
     <div className="touch-controls" aria-label="controles">
-      <div className="dpad">
-        <button className="dbtn up" onPointerDown={(e) => { e.preventDefault(); steer("up"); }} aria-label="cima">▲</button>
-        <div className="dpad-row">
-          <button className="dbtn left" onPointerDown={(e) => { e.preventDefault(); steer("left"); }} aria-label="esquerda">◀</button>
-          <button
-            className="dbtn mid"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              if (!game) return;
-              AudioFX.ensure();
-              if (game.state === "title" || (game.state === "gameover" && game.stateT > 1)) game.primaryAction();
-              else game.togglePause();
-            }}
-            aria-label="pausa / começar"
-          >
-            {game && (game.paused || (game.state === "play" || game.state === "ready")) ? "❚❚" : "▶"}
-          </button>
-          <button className="dbtn right" onPointerDown={(e) => { e.preventDefault(); steer("right"); }} aria-label="direita">▶</button>
-        </div>
-        <button className="dbtn down" onPointerDown={(e) => { e.preventDefault(); steer("down"); }} aria-label="baixo">▼</button>
-      </div>
+      <button
+        className="pause-btn"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          if (!game) return;
+          AudioFX.ensure();
+          if (game.state === "title" || (game.state === "gameover" && game.stateT > 1)) game.primaryAction();
+          else game.togglePause();
+        }}
+        aria-label="pausa / começar"
+      >
+        {game && (game.paused || (game.state === "play" || game.state === "ready")) ? "❚❚" : "▶"}
+      </button>
     </div>
   );
 }

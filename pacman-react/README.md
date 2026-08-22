@@ -1,6 +1,16 @@
 # PERU MAN (React + TS)
 
-The PERU MAN game (the Brazilian-flag Pac-Man remake) rebuilt with **React +
+The code in this repo is entirely written using Qwen 3.8 27B Q4_K_M quant from Unsloth
+with thinking set to medium, using the suggest parameters + context lenght of 128k, 
+OpenCode coding harness and running it locally on an RTX 4090.
+
+The purpose of this project was to build something non-trival 
+and have the small model development experience to compare and contrast it with having
+a top-end of town FM as a daily driver. 
+
+---
+
+The PERU MAN game rebuilt with **React +
 TypeScript + Vite**, so it runs on a phone. The vanilla no-build version stays
 in `pacman/`; this is the `pacman-react/` port. The engine runs *outside* React
 (a `requestAnimationFrame` loop in `GameBoard`); React owns the shell/UI.

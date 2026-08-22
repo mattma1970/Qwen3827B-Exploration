@@ -122,6 +122,25 @@ canvas { display: block; }
 }
 .cp-close:hover { color: #fff; }
 .cp-sub { font-size: 11px; color: #6d74a8; margin-bottom: 12px; }
+.cp-warm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #ffb852;
+  background: #191942;
+  border: 1px solid #3d3d85;
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin-bottom: 12px;
+}
+.cp-warm .spin {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  flex: none;
+}
 .cp-opt {
   display: flex;
   align-items: center;
@@ -372,11 +391,38 @@ canvas { display: block; }
   cursor: pointer;
 }
 .wiz-recenter:hover { background: #23235a; }
-.wiz-status {
-  font-size: 11px;
+/* the preview canvas + the "something is working" overlay on top of it */
+.wiz-prevwrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+.wiz-busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(12, 12, 30, 0.72);
+  backdrop-filter: blur(2px);
   color: #ffb852;
-  min-height: 16px;
-  margin-top: 6px;
+  font-size: 12px;
+  text-align: center;
+}
+.spin {
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(255, 184, 82, 0.25);
+  border-top-color: #ffb852;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 .wiz-opt {
   display: flex;

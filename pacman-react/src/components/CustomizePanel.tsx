@@ -157,6 +157,9 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   // the 2-step character-design wizard: { slot, photo } — photo null means
   // step 1 (take a photo) is first; a File means straight to step 2 (design)
   const [wiz, setWiz] = useState<{ slot: string; photo: SourceImage | null } | null>(null);
+  // the first-time cutout-model download (tens of MB) warms up here, in the
+  // background: a small progress line keeps the phone from looking frozen
+  const [warm, setWarm] = useState<{ pct: number | null } | null>(null);
   const toastTimer = useRef<number | null>(null);
   const pausedByPanel = useRef(false);
 
@@ -176,8 +179,14 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
           game.togglePause();
           pausedByPanel.current = true;
         }
-        // warm the cutout model while the user is picking a photo
-        preloadCutout();
+        // warm the cutout model while the user is picking a photo; show its
+        // progress so the first-time model download is visible
+        setWarm({ pct: null });
+        preloadCutout({
+          progress: (_key, cur, total) => {
+            if (total > 0) setWarm({ pct: Math.min(100, Math.round((cur / total) * 100)) });
+          },
+        }).then(() => setWarm(null));
       } else if (pausedByPanel.current && game) {
         game.togglePause();
         pausedByPanel.current = false;
@@ -213,6 +222,8 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   // plus the character design (base + color + silhueta) for the slot.
   const handleWizardApply = (slot: string, src: SourceImage, design: CharDesign) => {
     setWiz(null);
+    // assignPhoto re-runs the emoji-ify — bridge that pause with a toast
+    showToast("aplicando foto…");
     assignPhoto(slot, src, design.silhueta ? { outline: OUTLINE_RADIUS } : {}).then(
       (name) => {
         setLastUsed(name);
@@ -285,6 +296,16 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
             </button>
           </div>
           <div className="cp-sub">solte uma foto em cada slot — ou clique para escolher</div>
+          {warm && (
+            <div className="cp-warm" role="status">
+              <span className="spin" />
+              <span>
+                {warm.pct == null
+                  ? "preparando o recorte de silhueta…"
+                  : "baixando o recorte de silhueta… " + warm.pct + "%"}
+              </span>
+            </div>
+          )}
           <div className="cp-grid">
             {slotList().map((slot) => (
               <SlotZone

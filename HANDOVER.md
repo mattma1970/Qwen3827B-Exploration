@@ -1,11 +1,50 @@
 # PERU MAN — handover / resume notes
 
 > Read this first to pick up where work left off. Last updated: 2026-08-22 (**photo
-> silhueta + sticker outline + player rider + character-design wizard all done on
-> `feature/photo-outline` (pushed, PR #6 open), awaiting a PR review/merge on explicit
-> user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
+> silhueta + sticker outline + player rider + character-design wizard + busy/download-
+> progress feedback all done on `feature/photo-outline` (pushed, PR #6 open), awaiting a
+> PR review/merge on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
 > `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user instruction, gated on a
 > full passing test run). Keep this file updated as you go so a future session can resume.
+
+## Busy / download-progress feedback (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+Goal (user): "when the library is being downloaded and when the processing is happening
+on the phone there is no indication that something is in process of happening. it looks
+like things have crashed." Two stalls needed visible feedback: (a) the **first-time
+cutout-model download** (~40 MB from the IMG.LY CDN, browser-cached after) and (b) the
+**per-photo cutout + emoji-ify** in the wizard.
+- **`src/game/silhouette.ts`**: `preloadCutout` signature changed from
+  `preloadCutout(model?: ModelName)` to `preloadCutout(opts?: PreloadOpts)` where
+  `PreloadOpts = { model?: ModelName; progress?: ProgressFn }`; the progress fn is
+  forwarded into imgly's `preload` cfg (imgly's `progress(key, cur, total)` covers
+  download + inference, so % is meaningful). Behavior otherwise identical (swallows
+  errors, resolves void). `test/peru-outline.test.ts` updated to the object form + new
+  case asserting default model + progress forwarding (now 12 tests in that file, 89 total).
+- **`CustomizePanel.tsx`**: new `warm` state `{pct:number|null}|null`; on panel open it
+  fires `setWarm({pct:null})` + `preloadCutout({ progress: (_k,cur,total) =>
+  total>0 && setWarm({pct: round(cur/total*100)}) }).then(() => setWarm(null))`. New
+  `.cp-warm` status row under `.cp-sub` (spinner + "preparando o recorte de silhueta…" /
+  "baixando o recorte de silhueta… N%"). Also `handleWizardApply` toasts
+  "aplicando foto…" before `assignPhoto` to bridge the emoji-ify pause after leaving
+  the wizard.
+- **`CharacterWizard.tsx`**: `process()` now sets `busy` at EVERY phase — "processando
+  a foto…" (no-silhueta path, cached-cutout path, and the emoji-ify after a fresh
+  cutout), "recortando silhueta…" (+ "…N%" from the imgly progress callback) for the
+  first real cutout, and the existing "sem silhueta (sem rede?) — usando a foto inteira"
+  fallback (auto-cleared ~1500 ms). Preview canvas wrapped in `.wiz-prevwrap` with a
+  `.wiz-busy` overlay (spinner + label) on top of the canvas while `busy` is set; the
+  old `.wiz-status` text line was removed (was double-render). "aplicar" stays
+  `disabled={failed || !img || !!busy}` so the existing gating is unchanged.
+- **`src/style.css`**: removed dead `.wiz-status`; added `.wiz-prevwrap` (relative,
+  centered), `.wiz-busy` (absolute inset overlay: dark blur backdrop, orange text,
+  column center), `.spin` + `@keyframes spin` (26px orange-border spinner), `.cp-warm`
+  (inline status chip) + `.cp-warm .spin` (14px variant).
+**Verify: 89 tests / 10 files green; `npm run build` clean (tsc + vite) — main JS 196 kB
+(65 kB gzip) + 9.2 kB css, ONNX chunks + ~24 MB wasm lazy.**
+Outstanding: (1) real phone verification of BOTH the panel warm-download % and the
+wizard overlay (a real slow download is where it matters); (2) per AGENTS.md **do NOT
+merge PR #6** without an explicit user instruction + a fresh full-green `npm test`
+(this feature is React-only, vanilla untouched).
 
 ## Character-design wizard (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
 Goal (user): a bare cutout photo "loses the characteristic shape"; the user should CHOOSE

@@ -57,13 +57,22 @@ export async function cutout(source: CutoutSource, opts?: CutoutOpts): Promise<B
   }
 }
 
+export interface PreloadOpts {
+  model?: ModelName;
+  // download/inference progress (same shape as CutoutOpts.progress) — lets a
+  // caller show "downloading the cutout model…" during the first-time fetch
+  progress?: ProgressFn;
+}
+
 // Pre-fetch the model so the first cutout is fast. Safe to call repeatedly and
 // to ignore (fire-and-forget); headless/no-op when the module can't load.
-export async function preloadCutout(model?: ModelName): Promise<void> {
+export async function preloadCutout(opts?: PreloadOpts): Promise<void> {
   const api = await loadApi();
   const fn = api && api.preload;
   if (typeof fn !== "function") return;
   try {
-    await fn({ model: model || DEFAULT_MODEL });
+    const cfg: Record<string, unknown> = { model: opts?.model || DEFAULT_MODEL };
+    if (opts?.progress) cfg.progress = opts.progress;
+    await fn(cfg);
   } catch (e) {}
 }

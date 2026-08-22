@@ -50,7 +50,14 @@ Feature parity with the vanilla game:
   own color, and the pill to a Canva-purple Pac-Man. The per-slot design is
   saved under `peruman.char.<slot>` and restored at boot
   (`restoreCharDesigns`). "SÓ RECORTE" (no base) has no outline to clip
-  against — the photo shows as-is.
+   against — the photo shows as-is.
+   **Busy feedback** - the model download (tens of MB, fetched once) and the
+   per-photo cutout/emoji-ify are where a phone looks like it froze, so both
+   show visible progress: on panel open a `.cp-warm` line spins with the
+   model-download % (`preloadCutout({ progress })` — imgly reports download +
+   inference), and inside the design step a `.wiz-busy` overlay (spinner + label,
+   e.g. "recortando silhueta… N%") covers the preview across every processing
+   phase and keeps "aplicar" disabled until the image is ready.
 - **Sound** - Web Audio SFX (M to mute)
 
 ## Run

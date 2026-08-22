@@ -81,7 +81,6 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
     if (!src) return;
     const job = ++jobRef.current;
     setFailed(false);
-    setBusy("processando…");
     const finish = (s: SourceImage) => {
       imageToSprite(s, { outline: silhueta ? OUTLINE_RADIUS : 0 }).then(
         (im) => {
@@ -101,13 +100,18 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
       );
     };
     if (!silhueta) {
+      setBusy("processando a foto…");
       finish(src);
       return;
     }
     if (cutoutRef.current) {
+      setBusy("processando a foto…");
       finish(cutoutRef.current);
       return;
     }
+    // first cut since this photo: the model may still be downloading (the %
+    // comes from imgly, which covers download + inference)
+    setBusy("recortando silhueta…");
     cutout(src as string | Blob | File, {
       progress: (_key, cur, total) => {
         if (job === jobRef.current && total > 0) setBusy("recortando silhueta… " + Math.min(100, Math.round((cur / total) * 100)) + "%");
@@ -116,6 +120,7 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
       if (job !== jobRef.current) return;
       if (b) {
         cutoutRef.current = b;
+        setBusy("processando a foto…");
         finish(b);
       } else {
         setBusy("sem silhueta (sem rede?) — usando a foto inteira");
@@ -225,16 +230,24 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
             ×
           </button>
         </div>
-        <canvas
-          ref={prevRef}
-          className="wiz-prev"
-          width={PREV_SIZE}
-          height={PREV_SIZE}
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-        />
+        <div className="wiz-prevwrap">
+          <canvas
+            ref={prevRef}
+            className="wiz-prev"
+            width={PREV_SIZE}
+            height={PREV_SIZE}
+            onPointerDown={onDragStart}
+            onPointerMove={onDragMove}
+            onPointerUp={onDragEnd}
+            onPointerCancel={onDragEnd}
+          />
+          {busy && (
+            <div className="wiz-busy" role="status">
+              <span className="spin" />
+              <span>{busy}</span>
+            </div>
+          )}
+        </div>
         <div className="wiz-hint">
           {d.dx !== 0 || d.dy !== 0 ? (
             <button type="button" className="wiz-recenter" onClick={() => setD({ ...d, dx: 0, dy: 0 })}>
@@ -244,7 +257,6 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
             "arraste a foto para posicionar no personagem"
           )}
         </div>
-        {busy && <div className="wiz-status">{busy}</div>}
         <label className="wiz-opt" title="recorta o fundo da foto no aparelho e desenha um contorno de sticker">
           <input type="checkbox" checked={d.silhueta} onChange={(e) => setD({ ...d, silhueta: e.target.checked })} />
           <span>recorte de silhueta</span>

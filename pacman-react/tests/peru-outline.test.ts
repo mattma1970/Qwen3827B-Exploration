@@ -176,9 +176,20 @@ describe("silhouette.ts: lazy imgly wrapper", () => {
   it("preloadCutout forwards the model choice and swallows failures", async () => {
     vi.stubGlobal("window", {});
     const { preloadCutout } = await cutoutMod();
-    await expect(preloadCutout("isnet_fp16")).resolves.toBeUndefined();
+    await expect(preloadCutout({ model: "isnet_fp16" })).resolves.toBeUndefined();
     expect(mockPreload).toHaveBeenCalledWith({ model: "isnet_fp16" });
     mockPreload.mockRejectedValue(new Error("nope"));
     await expect(preloadCutout()).resolves.toBeUndefined();
+  });
+
+  it("preloadCutout defaults to the smallest model and forwards progress", async () => {
+    vi.stubGlobal("window", {});
+    const { preloadCutout } = await cutoutMod();
+    const progress = vi.fn();
+    await expect(preloadCutout({ progress })).resolves.toBeUndefined();
+    expect(mockPreload).toHaveBeenCalledTimes(1);
+    const [cfg] = mockPreload.mock.calls[0] as [Record<string, unknown>];
+    expect(cfg.model).toBe("isnet_quint8");
+    expect(cfg.progress).toBe(progress);
   });
 });

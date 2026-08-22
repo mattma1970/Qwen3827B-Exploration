@@ -416,7 +416,7 @@ export class Game {
     grad.addColorStop(1, "#4d7cff");
     c.fillStyle = grad;
     c.font = "900 40px sans-serif";
-    c.fillText("PERU MAN", mid, 96);
+    c.fillText("BRAZIL MAN", mid, 96);
     c.fillStyle = "#8b93c9";
     c.font = "14px monospace";
     c.fillText("o Pac-BR persegue o rebanho", mid, 126);

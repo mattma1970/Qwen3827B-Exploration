@@ -2,6 +2,7 @@
 // turkeys, Canva power pill, pellets.
 
 import { clamp } from "./utils";
+import { designFor } from "./character";
 
 // Sprite registry: user photos (emoji-fied in-browser, see photo.ts) override
 // the hand-drawn art per slot. `ghosts` is keyed by turkey name. Values are
@@ -48,11 +49,132 @@ export function rafaEmojiReady(): boolean {
 
 export type Facing = "up" | "down" | "left" | "right";
 
-// Pac-man face: photo sprite (if assigned) -> emoji avatar -> hand-drawn BR flag,
-// clipped to the mouth wedge.
+// Classic arcade Pac-Man yellow (also the pellet/flag-diamond yellow).
+export const PAC_YELLOW = "#ffdf00";
+
+// Rider photo scale relative to the character radius: <1 keeps a visible rim
+// of the base (and the mouth wedge) around the cutout face.
+export const PLAYER_RIDER_SCALE = 0.88;
+
+export interface BaseOpts {
+  facing?: Facing;
+  mouth?: number;
+  fright?: boolean;
+  flick?: boolean;
+}
+
+// Scared face (squiggle eyes + wave mouth), centered — used by the ghost base
+// in fright mode.
+function frightFaceGhost(c: CanvasRenderingContext2D, r: number, flick?: boolean): void {
+  c.strokeStyle = flick ? "#5b7fff" : "#1c2a6b";
+  c.lineWidth = 2;
+  for (const ex of [-r * 0.3, r * 0.3]) {
+    c.beginPath();
+    c.moveTo(ex - r * 0.14, -r * 0.26);
+    c.quadraticCurveTo(ex - r * 0.07, -r * 0.38, ex, -r * 0.26);
+    c.quadraticCurveTo(ex + r * 0.07, -r * 0.14, ex + r * 0.14, -r * 0.26);
+    c.stroke();
+  }
+  c.beginPath();
+  c.moveTo(-r * 0.36, r * 0.3);
+  for (let i = 0; i < 4; i++) {
+    c.lineTo(-r * 0.36 + r * 0.2 * (i + 0.5), r * 0.3 + (i % 2 ? r * 0.14 : -r * 0.14));
+  }
+  c.stroke();
+}
+
+// The base character's outline, built as a path centered on the current
+// origin — used both to FILL the base and to CLIP a photo riding on top of it
+// (a photo may cover the character but never extend outside it). The pacman
+// wedge is rotated to `facing` (path coordinates freeze at build time, so the
+// save/rotate/.../restore around it is safe). Returns false for "none"/
+// unknown ids: a cutout on its own has no shape to clip against.
+export function characterBasePath(c: CanvasRenderingContext2D, base: string, r: number, opts?: BaseOpts): boolean {
+  const o = opts || {};
+  const facing: Facing = o.facing || "right";
+  if (base === "pacman") {
+    const ang: number = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[facing] || 0;
+    const mouth = o.mouth == null ? 0.5 : o.mouth;
+    c.save();
+    c.rotate(ang);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
+    c.closePath();
+    c.restore();
+    return true;
+  }
+  if (base === "ghost") {
+    c.beginPath();
+    c.arc(0, -r * 0.08, r * 0.92, Math.PI, 0); // dome
+    const yBot = r * 0.72;
+    c.lineTo(r * 0.92, yBot);
+    const sw = (r * 1.84) / 3;
+    for (let i = 0; i < 3; i++) {
+      const cx = r * 0.92 - sw / 2 - i * sw;
+      c.arc(cx, yBot, sw / 2, 0, Math.PI, false); // scallop bumping downward
+    }
+    c.closePath();
+    return true;
+  }
+  return false;
+}
+
+// A base character, drawn centered on the current origin (the caller has
+// already translated/scaled to the character). Library:
+//  - "pacman": classic yellow-style mouth wedge, rotated to `facing`;
+//  - "ghost":  classic dome + wavy skirt, eyes looking toward `facing`;
+//  - "none" (or unknown): nothing — the cutout+sticker look on its own.
+// `fright` paints the base in the scared blue (white when flick) with the
+// squiggle face instead of the normal face.
+export function drawCharacterBase(c: CanvasRenderingContext2D, base: string, color: string, r: number, opts?: BaseOpts): void {
+  const o = opts || {};
+  const fright = !!o.fright;
+  if (!characterBasePath(c, base, r, o)) return;
+  c.fillStyle = fright ? (o.flick ? "#f8f9ff" : "#5b7fff") : color;
+  c.fill();
+  if (fright) {
+    frightFaceGhost(c, r, o.flick);
+    return;
+  }
+  if (base !== "ghost") return;
+  const facing: Facing = o.facing || "right";
+  const pdx = facing === "left" ? -r * 0.05 : facing === "right" ? r * 0.05 : 0;
+  const pdy = facing === "up" ? -r * 0.06 : facing === "down" ? r * 0.06 : 0;
+  for (const ex of [-r * 0.33, r * 0.33]) {
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.ellipse(ex, -r * 0.3, r * 0.19, r * 0.25, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#1b2cff";
+    c.beginPath();
+    c.arc(ex + pdx, -r * 0.3 + pdy, r * 0.1, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
+// Pac-man face: photo sprite (if assigned) -> emoji avatar -> hand-drawn BR flag.
+// With a photo: the slot's character base (see game/character.ts — classic
+// Pac-Man by default) is drawn first, and the photo RIDES on top of it, always
+// upright and CLIPPED to the base's outline — it may cover the character but
+// never extends outside it (a transparent cutout keeps the base visible around
+// the object, so the face looks like it rides the character; opaque photos
+// cover the whole shape). A "none" base has no outline: the photo is as-is.
 export function drawPlayer(c: CanvasRenderingContext2D, x: number, y: number, r: number, mouth: number, facing: string): void {
-  const ang: number = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[facing as Facing] || 0;
   const img = playerSprite();
+  if (img) {
+    const d = designFor("player");
+    const bo = { facing: facing as Facing, mouth };
+    c.save();
+    c.translate(x, y);
+    drawCharacterBase(c, d.base, d.color, r, bo);
+    if (characterBasePath(c, d.base, r, bo)) c.clip();
+    const s = r * PLAYER_RIDER_SCALE;
+    c.drawImage(img, d.dx * r - s, d.dy * r - s, s * 2, s * 2);
+    c.restore();
+    return;
+  }
+  const ang: number = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[facing as Facing] || 0;
   c.save();
   c.translate(x, y);
   c.rotate(ang);
@@ -60,14 +182,6 @@ export function drawPlayer(c: CanvasRenderingContext2D, x: number, y: number, r:
   c.moveTo(0, 0);
   c.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
   c.closePath();
-  if (img) {
-    c.save();
-    c.clip();
-    c.drawImage(img, -r, -r, r * 2, r * 2);
-    c.restore();
-    c.restore();
-    return;
-  }
   const g = c.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.15, 0, 0, r);
   g.addColorStop(0, "#2fd06b");
   g.addColorStop(1, "#009c3b");
@@ -116,22 +230,19 @@ export function drawTurkey(c: CanvasRenderingContext2D, x: number, y: number, r:
 
   const photo = o.name ? Sprites.ghosts[o.name] : null;
   if (o.name && spriteReady(photo)) {
-    c.drawImage(photo, -r * 1.15, -r * 1.15, r * 2.3, r * 2.3);
-    if (fright) {
-      c.fillStyle = flick ? "rgba(248,249,255,0.45)" : "rgba(91,127,255,0.55)";
-      c.beginPath();
-      c.arc(0, 0, r * 1.15, 0, Math.PI * 2);
-      c.fill();
-      c.strokeStyle = flick ? "#5b7fff" : "#1c2a6b";
-      c.lineWidth = 2;
-      c.beginPath();
-      c.moveTo(r * 0.1, -r * 0.45);
-      c.lineTo(r * 0.4, -r * 0.2);
-      c.lineTo(r * 0.1, 0);
-      c.lineTo(r * 0.4, r * 0.25);
-      c.lineTo(r * 0.1, r * 0.5);
-      c.stroke();
-    }
+    // base character (upright at the bobbed spot — it already faces via
+    // `facing`; the local x-flip is for the hand-drawn art), then the photo on
+    // top, upright, bobbing along, and clipped to the base's outline
+    const d = designFor(o.name);
+    const bob = o.bob || 0;
+    const bo = { facing: o.facing, fright, flick };
+    c.restore();
+    c.save();
+    c.translate(x, y + bob);
+    drawCharacterBase(c, d.base, d.color, r, bo);
+    if (characterBasePath(c, d.base, r, bo)) c.clip();
+    const s = r * PLAYER_RIDER_SCALE;
+    c.drawImage(photo, d.dx * r - s, d.dy * r - s, s * 2, s * 2);
     c.restore();
     return;
   }
@@ -261,7 +372,23 @@ export function drawCanvaPill(c: CanvasRenderingContext2D, x: number, y: number,
   c.strokeStyle = "rgba(100,32,255,0.5)";
   c.stroke();
 
-  const img = spriteReady(Sprites.pill) ? Sprites.pill : canvaWordmarkImg;
+  // a user photo rides its character base on top of the glowing disc (the
+  // base mouth wiggles on the same clock as the pulse)
+  if (spriteReady(Sprites.pill)) {
+    const d = designFor("pill");
+    const rb = r * 0.92;
+    const bo = {
+      facing: "right" as const,
+      mouth: 0.5 + 0.35 * Math.sin((t || 0) * 6),
+    };
+    drawCharacterBase(c, d.base, d.color, rb, bo);
+    if (characterBasePath(c, d.base, rb, bo)) c.clip();
+    const rs = rb * PLAYER_RIDER_SCALE;
+    c.drawImage(Sprites.pill, d.dx * rb - rs, d.dy * rb - rs, rs * 2, rs * 2);
+    c.restore();
+    return;
+  }
+  const img = canvaWordmarkImg;
   if (img && img.complete && img.naturalWidth > 0) {
     // full official "Canva" wordmark, scaled to sit inside the disc
     const w = r * 1.95;

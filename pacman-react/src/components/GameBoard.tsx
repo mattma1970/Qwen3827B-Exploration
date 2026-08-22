@@ -1,7 +1,7 @@
 // PERU MAN (React) - the game board: canvas + engine wiring + input.
 // The Game engine runs outside React (rAF loop); React just mounts it.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CELL, COLS } from "../game/config";
 import { Game } from "../game/game";
 import { AudioFX } from "../game/audio";
@@ -26,9 +26,11 @@ interface Props {
   onToggleCustomize: () => void;
   // drop-anywhere: a photo dropped on the canvas goes to the last-used slot
   onCanvasDrop?: (f: File | null) => void;
+  // optional overlay rendered on top of the canvas (e.g. the mobile title splash)
+  overlay?: ReactNode;
 }
 
-export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop }: Props) {
+export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop, overlay }: Props) {
   const onCanvasDropRef = useRef(onCanvasDrop);
   onCanvasDropRef.current = onCanvasDrop;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -177,6 +179,7 @@ export default function GameBoard({ onGame, onToggleCustomize, onCanvasDrop }: P
           onCanvasDropRef.current?.(f);
         }}
       />
+      {overlay}
     </div>
   );
 }

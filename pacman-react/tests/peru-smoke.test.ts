@@ -1,10 +1,29 @@
 // Headless verification: maze integrity + smoke-run the full game loop.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAZE, COLS, ROWS } from "../src/game/config";
 import { Game } from "../src/game/game";
 import { noopCtx } from "./helpers";
 
 const dirs = ["up", "down", "left", "right"] as const;
+
+// Small deterministic PRNG (mulberry32). The smoke run below stubs
+// Math.random with it, so the whole game loop (ghost AI included) is
+// reproducible run-to-run instead of wobbling with the unseeded random.
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+let randSpy: ReturnType<typeof vi.spyOn> | null = null;
+afterEach(() => {
+  randSpy?.mockRestore();
+  randSpy = null;
+});
 
 describe("maze", () => {
   it("has 15 rows, all width 15", () => {
@@ -46,6 +65,7 @@ describe("maze", () => {
 
 describe("smoke (5000 frames, random play)", () => {
   it("scores points, exercises the death path, and never throws", () => {
+    randSpy = vi.spyOn(Math, "random").mockImplementation(mulberry32(1));
     const game = new Game(noopCtx(), 15 * 32);
     let deaths = 0, levelups = 0, maxScore = 0;
     const states: Record<string, number> = {};

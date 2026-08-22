@@ -2,9 +2,12 @@
 // the browser glue (canvas pipeline, Sprites registry assignment, localStorage
 // persistence). Every entry point here is guarded so headless (no DOM) callers
 // can import the pure parts safely.
-// Pipeline (glue): resize -> blur -> posterize -> medianCut -> drawImage as-is.
+// Pipeline (glue): resize -> blur -> posterize -> medianCut -> (optional
+// sticker outline) -> drawImage as-is.
 
 import { Sprites } from "./sprites";
+import { stickerOutline } from "./sticker";
+import { clearDesign } from "./character";
 import {
   SPRITE_SIZE,
   SPRITE_LS_PREFIX,
@@ -148,6 +151,10 @@ export interface ToSpriteOpts {
   colors?: number;
   levels?: number;
   blur?: number;
+  // sticker ring around the alpha silhouette: px radius (`true` = 6), or
+  // absent/false for the plain square. No-op on fully opaque photos, because
+  // then the "background" the ring could cover doesn't exist.
+  outline?: number | boolean;
 }
 
 // Load a File/Blob (object URL), a data/URL string, or pass through an already
@@ -209,8 +216,10 @@ export function boxBlurRgba(rgba: Uint8ClampedArray, w: number, h: number, radiu
 }
 
 // Emoji-fy any photo: cover-crop to a square canvas, blur, posterize(20),
-// median-cut to 16 flat colors. v1 draws the photo AS-IS (no masking/crop
-// beyond the square). Resolves an Image whose src is the PNG data URL.
+// median-cut to 16 flat colors. Feeds a cutout PNG (transparent background,
+// see ./silhouette) the object keeps its silhouette instead of a flat square,
+// and `outline` adds a flat sticker ring around that silhouette. Resolves an
+// Image whose src is the PNG data URL.
 export function imageToSprite(source: SourceImage, opts?: ToSpriteOpts): Promise<HTMLImageElement> {
   const o = opts || {};
   const size = o.size || SPRITE_SIZE;
@@ -241,7 +250,10 @@ export function imageToSprite(source: SourceImage, opts?: ToSpriteOpts): Promise
     if (blurPx > 0 && !hasFilter) rgba = boxBlurRgba(rgba, size, size, blurPx);
     rgba = posterize(rgba, levels);
     const q = medianCut(rgba, size, size, colors);
-    if (typeof ImageData !== "undefined") ctx.putImageData(new ImageData(q.data as unknown as ImageDataArray, size, size), 0, 0);
+    let out = q.data;
+    const ring = typeof o.outline === "number" ? o.outline : o.outline === true ? 6 : 0;
+    if (ring > 0) out = stickerOutline(out, size, size, { radius: ring });
+    if (typeof ImageData !== "undefined") ctx.putImageData(new ImageData(out as unknown as ImageDataArray, size, size), 0, 0);
     const url = cv.toDataURL("image/png");
     const img = new Image();
     img.src = url;
@@ -272,6 +284,7 @@ export function clearPhoto(slot: string): boolean {
   if (!s) return false;
   setSprite(s, null);
   delete SpriteData[s];
+  clearDesign(s);
   if (hasStorage()) {
     try {
       localStorage.removeItem(SPRITE_LS_PREFIX + s);

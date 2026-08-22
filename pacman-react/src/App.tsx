@@ -1,15 +1,20 @@
-// PERU MAN (React) - app shell: game board + touch controls + customize panel.
+// PERU MAN (React) - app shell: game board + mobile top banner + swipe pad +
+// customize panel. Desktop keeps an in-flow logo + the controls hint; mobile puts
+// the play/pause button in the top corner banner (clear of the board), adds a
+// bordered "swipe pad" under the board, and shows the controls as a retro splash
+// box over the board (gone once the match starts or the panel opens).
 
 import { useEffect, useRef, useState } from "react";
 import GameBoard from "./components/GameBoard";
-import TouchControls from "./components/TouchControls";
+import TopBar from "./components/TopBar";
 import CustomizePanel from "./components/CustomizePanel";
 import type { Game } from "./game/game";
 import { AudioFX } from "./game/audio";
 import { restoreSprites } from "./game/photo";
+import { restoreCharDesigns } from "./game/character";
 
 // Mobile UI switch: viewport-based (kept in sync with the @media 720px rules
-// in style.css). Drives the hamburger menu layout on phones.
+// in style.css). Drives the top-banner layout on phones.
 function useIsMobile(): boolean {
   const [mobile, setMobile] = useState<boolean>(
     () => typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 720px)").matches
@@ -33,6 +38,7 @@ export default function App() {
   // on mount).
   useEffect(() => {
     restoreSprites();
+    restoreCharDesigns();
   }, []);
 
   // late-bound handlers: the customize panel registers its drop-anywhere and
@@ -42,52 +48,66 @@ export default function App() {
 
   // top-left hamburger on phones: opens the personalize panel (same toggle as
   // the C hotkey, so it auto-pauses) and replaces the in-flow "Personalizar"
-  // button, which the fixed on-screen DPad would sit on top of.
+  // button, which a fixed on-screen control would sit on top of.
   const openMenu = () => {
     AudioFX.ensure();
     toggleHandler.current?.();
   };
 
+  // the retro instructions splash: shown on the title screen, gone once the
+  // match starts (state leaves "title") or the personalize panel opens
+  const [atTitle, setAtTitle] = useState(true);
+  useEffect(() => {
+    if (!game) return;
+    const tick = () => setAtTitle(game.state === "title" && !game.paused);
+    tick();
+    const id = setInterval(tick, 200);
+    return () => clearInterval(id);
+  }, [game]);
+
+  const splash =
+    isMobile && atTitle && !customizeOpen ? (
+      <div className="splash">
+        <div className="splash-box">
+          <div className="splash-title">COMO JOGAR</div>
+          <ul className="splash-lines">
+            <li>deslize o dedo para mover o Pacman</li>
+            <li>parado, ele n&atilde;o vira de dire&ccedil;&atilde;o</li>
+            <li>&#9776; personaliza &middot; toque num slot e escolha uma foto</li>
+            <li>P&iacute;lulas de poder: Canva &middot; Ghosts: 4 perus</li>
+          </ul>
+          <div className="splash-start">toque para come&ccedil;ar <span aria-hidden="true">▮</span></div>
+        </div>
+      </div>
+    ) : null;
+
   return (
     <main className="wrap">
-      {isMobile && (
-        <button className="menu-btn" aria-label="menu" onClick={openMenu}>
-          &#9776;
-        </button>
+      {isMobile && <TopBar game={game} onMenu={openMenu} />}
+      {!isMobile && (
+        <h1 className="logo">BRAZIL&nbsp;MAN</h1>
       )}
-      <h1 className="logo">
-        PERU&nbsp;MAN
-        <span className="ver-badge" title="React + TypeScript build">react</span>
-      </h1>
       <GameBoard
         onGame={setGame}
         onToggleCustomize={() => toggleHandler.current?.()}
         onCanvasDrop={(f) => dropHandler.current?.(f)}
+        overlay={splash}
       />
-      <p className="hint">
-        {isMobile ? (
-          <>
-            deslize o dedo na tela para mover &middot; parado n&atilde;o vira
-            <br />
-            <span className="menu" role="button" onClick={openMenu}>
-              &#9776;
-            </span>{" "}
-            personaliza &middot; toque num slot e escolha uma foto
-            <br />
-            Pilulas de poder: Canva &middot; Ghosts: 4 perus
-          </>
-        ) : (
-          <>
-            Setas / WASD move &middot; P pausa &middot; M som &middot; Enter come&ccedil;a
-            <br />
-            no celular: deslize o dedo na tela para mover
-            <br />
-            Pilulas de poder: Canva &middot; Ghosts: 4 perus
-            <br />
-            C personaliza &middot; solte uma foto num slot (no tabuleiro, vai pro &uacute;ltimo usado)
-          </>
-        )}
-      </p>
+      {isMobile ? (
+        <div className="swipe-pad" aria-hidden="true">
+          <span className="swipe-pad-hint">deslize aqui para mover</span>
+        </div>
+      ) : (
+        <p className="hint">
+          Setas / WASD move &middot; P pausa &middot; M som &middot; Enter come&ccedil;a
+          <br />
+          no celular: deslize o dedo na tela para mover
+          <br />
+          Pilulas de poder: Canva &middot; Ghosts: 4 perus
+          <br />
+          C personaliza &middot; solte uma foto num slot (no tabuleiro, vai pro &uacute;ltimo usado)
+        </p>
+      )}
       <CustomizePanel
         open={customizeOpen}
         setOpen={setCustomizeOpen}
@@ -100,7 +120,6 @@ export default function App() {
           toggleHandler.current = fn;
         }}
       />
-      <TouchControls game={game} />
     </main>
   );
 }

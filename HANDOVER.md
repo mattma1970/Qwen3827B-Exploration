@@ -1,9 +1,256 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-22 (**swipe steering
-> merged to main** via PR #5, merge `7c1c065`; camera capture merged via PR #4, merge `97fa5b1`;
-> AGENTS.md now allows `gh pr merge` ONLY on explicit user instruction, gated on a full
-> passing test run). Keep this file updated as you go so a future session can resume.
+> Read this first to pick up where work left off. Last updated: 2026-08-22 (**photo
+> silhueta + sticker outline + player rider + character-design wizard + busy/download-
+> progress feedback + mobile UX layout (top-banner pause, board-up, swipe pad, title
+> splash) all done on `feature/photo-outline` (pushed, PR #6 open), awaiting a PR
+> review/merge on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
+> `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user instruction, gated on a
+> full passing test run). Keep this file updated as you go so a future session can resume.
+
+## Mobile UX layout: top banner (pause), board-up, swipe pad, title splash (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+Goal (user): swiping works but the pause button + board are "in the way". Shift the board
+up, move the start/pause button into the top corner banner (hamburger stays left), add a
+bordered "swipe pad" under the board (laptop-trackpad look), and move the controls text
+into a retro splash box over the board that disappears when the match starts or the user
+personalizes. React-only, mobile-only (≤720px); desktop keeps the logo + in-flow hint.
+- **`src/components/TopBar.tsx`** (NEW, mobile only): fixed top banner. Left = hamburger
+  (opens the personalize panel, same toggle as the C hotkey). Right = play/pause (▶ at
+  title/gameover, ❚❚ when playing/paused) — moved here off the board; polls the paused flag
+  on a 300 ms tick (no engine event bus). Brand "PERU MAN react" centered.
+- **`src/components/GameBoard.tsx`**: new `overlay?: ReactNode` prop rendered inside
+  `.canvas-wrap` (now `position: relative`) — hosts the mobile splash over the canvas.
+- **`App.tsx`**: mobile renders `<TopBar>` + board + an in-flow bordered `.swipe-pad` under
+  the board; desktop keeps the logo + `.hint`. Removed the fixed top-left hamburger + the
+  bottom pause pill (`src/components/TouchControls.tsx` **DELETED**). New `atTitle` poll
+  (200 ms) shows a retro `.splash` box over the board on the title screen; it hides the
+  moment the match starts (state leaves "title") or the personalize panel opens
+  (`pointer-events:none` on the splash so a tap on the board passes through to start).
+- **`src/style.css`**: removed `.menu-btn`/`.hint .menu`/`.touch-controls`/`.pause-btn`;
+  added `.topbar`/`.topbar-btn`/`.topbar-brand`/`.topbar-badge`, `.splash`/`.splash-box`/
+  `.splash-title`/`.splash-lines`/`.splash-start` + `@keyframes splashblink`, `.swipe-pad`/
+  `.swipe-pad-hint`. Mobile media queries: `body { align-items: flex-start }` (so a tall
+  board is never clipped by flex centering) + `.wrap` top padding to clear the fixed
+  banner; removed the old bottom 96px pad (no more fixed bottom button).
+**Follow-up (same branch): rename to BRAZIL MAN** — top banner brand "PERU MAN react" →
+"BRAZIL MAN", in-game canvas title (game.ts `fillText`), desktop logo, and `index.html`
+tab title all renamed; the "react" version badge removed (its `.ver-badge`/`.topbar-badge`
+CSS deleted too). localStorage prefixes `peruman.sprite.*` / `peruman.char.*` deliberately
+UNCHANGED (persisted user data). Mobile `.wrap` `padding-top` bumped 58px → 74px to give a
+small gap above the board under the banner.
+**Verify: 89 tests / 10 files green; `npm run build` clean (tsc + vite). No suite covers
+the app shell (banner/layout/splash) or the canvas title render — verified by `tsc` +
+`vite build` only.**
+Outstanding: (1) real-phone verification of the new layout (banner, board-up, pad,
+splash-over-board, tap-to-start passthrough); (2) per AGENTS.md **do NOT merge PR #6**
+without an explicit user instruction + a fresh full-green `npm test` (React-only, vanilla
+untouched).
+
+## Busy / download-progress feedback (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+Goal (user): "when the library is being downloaded and when the processing is happening
+on the phone there is no indication that something is in process of happening. it looks
+like things have crashed." Two stalls needed visible feedback: (a) the **first-time
+cutout-model download** (~40 MB from the IMG.LY CDN, browser-cached after) and (b) the
+**per-photo cutout + emoji-ify** in the wizard.
+- **`src/game/silhouette.ts`**: `preloadCutout` signature changed from
+  `preloadCutout(model?: ModelName)` to `preloadCutout(opts?: PreloadOpts)` where
+  `PreloadOpts = { model?: ModelName; progress?: ProgressFn }`; the progress fn is
+  forwarded into imgly's `preload` cfg (imgly's `progress(key, cur, total)` covers
+  download + inference, so % is meaningful). Behavior otherwise identical (swallows
+  errors, resolves void). `test/peru-outline.test.ts` updated to the object form + new
+  case asserting default model + progress forwarding (now 12 tests in that file, 89 total).
+- **`CustomizePanel.tsx`**: new `warm` state `{pct:number|null}|null`; on panel open it
+  fires `setWarm({pct:null})` + `preloadCutout({ progress: (_k,cur,total) =>
+  total>0 && setWarm({pct: round(cur/total*100)}) }).then(() => setWarm(null))`. New
+  `.cp-warm` status row under `.cp-sub` (spinner + "preparando o recorte de silhueta…" /
+  "baixando o recorte de silhueta… N%"). Also `handleWizardApply` toasts
+  "aplicando foto…" before `assignPhoto` to bridge the emoji-ify pause after leaving
+  the wizard.
+- **`CharacterWizard.tsx`**: `process()` now sets `busy` at EVERY phase — "processando
+  a foto…" (no-silhueta path, cached-cutout path, and the emoji-ify after a fresh
+  cutout), "recortando silhueta…" (+ "…N%" from the imgly progress callback) for the
+  first real cutout, and the existing "sem silhueta (sem rede?) — usando a foto inteira"
+  fallback (auto-cleared ~1500 ms). Preview canvas wrapped in `.wiz-prevwrap` with a
+  `.wiz-busy` overlay (spinner + label) on top of the canvas while `busy` is set; the
+  old `.wiz-status` text line was removed (was double-render). "aplicar" stays
+  `disabled={failed || !img || !!busy}` so the existing gating is unchanged.
+- **`src/style.css`**: removed dead `.wiz-status`; added `.wiz-prevwrap` (relative,
+  centered), `.wiz-busy` (absolute inset overlay: dark blur backdrop, orange text,
+  column center), `.spin` + `@keyframes spin` (26px orange-border spinner), `.cp-warm`
+  (inline status chip) + `.cp-warm .spin` (14px variant).
+**Verify: 89 tests / 10 files green; `npm run build` clean (tsc + vite) — main JS 196 kB
+(65 kB gzip) + 9.2 kB css, ONNX chunks + ~24 MB wasm lazy.**
+Outstanding: (1) real phone verification of BOTH the panel warm-download % and the
+wizard overlay (a real slow download is where it matters); (2) per AGENTS.md **do NOT
+merge PR #6** without an explicit user instruction + a fresh full-green `npm test`
+(this feature is React-only, vanilla untouched).
+
+## Character-design wizard (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+Goal (user): a bare cutout photo "loses the characteristic shape"; the user should CHOOSE
+how their photo is presented — a **2-step wizard** (2-step chosen as the "extensible"
+option): step 1 **foto** (camera or gallery), step 2 **personagem** (design the
+character). Options per slot: **remove-background/silhueta** (default on), **base
+character** library (classic Pac-Man, the 4 classic ghosts' ghost shape, "só recorte"
+= no base), **base color** (curated arcade-palette swatches, not a free picker). Applies
+to **ALL 6 slots** (player, 4 turkeys, pill). Branch = `feature/photo-outline` (off
+`origin/main` @ `12e8939`; already held silhouette `72272b7` + rider `051d893`); this
+work is one more commit on the same branch/PR #6.
+- **`src/game/character.ts`** (NEW, pure, DOM-free): `CharDesign {base, color, silhueta}`;
+  `CHARS` (pacman/ghost/none — the extensible library: add an entry + a draw branch in
+  `drawCharacterBase` + defaults),   `CHAR_COLORS` (10 hexes: classic arcade palette
+  #ffdf00/#ff0000/#ffb8ff/#00ffff/#ffb852 + white/black + canva #6420ff/#00c4cc + #e63946),
+  `OUTLINE_RADIUS=10`, `CHAR_OFFSET_MAX=0.5`, `isCharId`, `defaultDesign(slot)`
+  (player→pacman #ffdf00, pill→pacman #6420ff, each turkey→ghost in its own TURKEYS
+  color, unknown→none; all silhueta:true, dx/dy=0), `sanitizeDesign(d, slot)`
+  (per-field fallback to the slot defaults; HEX_RE 3–8 digit; dx/dy non-finite/
+  out-of-range → 0 / clamped to ±0.5; old records without dx/dy load centered),
+  `CharDesigns` in-memory map, `designFor/setDesign/clearDesign` (localStorage
+  `peruman.char.<slot>`, swallow-all errors, false when no storage),
+  `restoreCharDesigns()` at boot. `dx/dy` = photo center offset from the base
+  center, in base-radius units (added later for the press-and-drag reposition;
+  applied in all three rider draw sites + wizard preview).
+- **`src/game/sprites.ts`**: NEW `BaseOpts {facing?, mouth?, fright?, flick?}`,
+  `export characterBasePath(c, base, r, opts): boolean` (the base's outline as a path —
+  pacman wedge rotated to facing; path coords freeze at build time, so the internal
+  save/rotate/.../restore is safe; false for "none"/unknown) and
+  `export drawCharacterBase(c, base, color, r, opts)` = fill that path in `color`
+  (fright→scared blue #5b7fff / flick white + squiggle face) + ghost eyes toward
+  facing; "none"/unknown → nothing. **Rider photos are CLIPPED to the base outline
+  (user ask: "crop when it extends outside the character")**: `drawPlayer` photo path =
+  `designFor("player")` base (rotated/mouth-animated), then clip to `characterBasePath`
+  + photo UPRIGHT at `PLAYER_RIDER_SCALE=0.88` (no rotation); "none" base → no clip.
+  `drawTurkey` photo path: the hand-drawn x-flip is hand-drawn-art-only now — the base
+  is drawn UPRIGHT at the bobbed spot (translate(x, y+bob); it already faces via
+  `facing`, which also fixes the left-facing pupils/mouth mirroring), then clip +
+  upright bobbing photo at 0.88 (replaces the old 1.15r full-square draw; test coords
+  are now local-frame, ±s around the translated origin). `drawCanvaPill` photo path =
+  `designFor("pill")` base on the glowing disc (mouth wiggling on the pulse clock),
+  clip + photo at 0.88 of rb. Wizard 256px preview clips too (same look as the board).
+  All three rider sites draw the photo at `(d.dx*r - s, d.dy*r - s)` (pill uses `rb`) —
+  the user's chosen position, scale-free (radius units). `frightFaceGhost` helper
+  (squiggle eyes + wave mouth). `drawMiniFlag` unchanged (plain circular photo, no
+  base — the tiny 16px life icon would just get muddy).
+- **`src/components/CharacterWizard.tsx`** (NEW): props `{slot, slotLabel, photo,
+  initial, onApply, onCancel}`; `photo!=null` → straight to step 2. Step 1 wraps
+  `CameraCapture` (new optional `onGallery` prop: "cancelar" becomes "voltar" + a
+  "galeria" button) and a hidden file input. Step 2: 256px live preview canvas (base +
+  upright, clipped, offset rider), "recorte de silhueta" checkbox, 3 base thumbs (56px
+  canvas via `drawCharacterBase`), 10 color swatches, "refazer foto / cancelar /
+  aplicar". **Press-and-drag on the preview repositions the photo** (user ask):
+  pointer events with `setPointerCapture`; `dragRef` holds the gesture start (client
+  xy + offset at that moment) so a move = start + full delta (no drift); client→canvas
+  px→base-unit scale `PREV_SIZE/rect/PREV_R` so the feel is identical at any CSS size;
+  clamped to ±`CHAR_OFFSET_MAX` (0.5 r); `touch-action:none` + cursor grab/grabbing so
+  phones don't scroll the card mid-drag; the hint line under the preview swaps to a
+  "recentrar foto" button when dx/dy ≠ 0. Offset applies live to the preview and
+  persists with the design.
+  Pipeline `process(src, silhueta)`: `cutout(src)` (cached in `cutoutRef` so flipping
+  the toggle back on re-cuts nothing; progress toasts) with fallback to the whole photo,
+  then `imageToSprite(s, {outline: silhueta?OUTLINE_RADIUS:0})`; job-guarded
+  (`jobRef`). `apply()` hands the processed source + design to the panel.
+- **`src/components/CustomizePanel.tsx`**: the old `cutoutOn` toggle + `cameraSlot`
+  `CameraCapture` + `applyPhoto` cutout pipeline are GONE (cutout now lives in the
+  wizard). New state `wiz: {slot, photo: SourceImage|null} | null`: per-slot "foto"
+  button → `openWizard(slot, null)` (camera first); file pick/drop (zone or
+  canvas-anywhere → lastUsed) → `openWizard(slot, file)` (straight to design).
+  `handleWizardApply(slot, src, design)`: `setWiz(null)` →
+  `assignPhoto(slot, src, design.silhueta?{outline:OUTLINE_RADIUS}:{})` →
+  `setLastUsed` + `setDesign(slot, design)` + bump + toast. Escape on the panel is
+  suppressed while `wiz` is open. `preloadCutout()` still fires on panel open.
+- **`src/game/photo.ts`**: `clearPhoto` also calls `clearDesign(slot)` (clearing a slot's
+  photo resets its character design to defaults too).
+- **`src/App.tsx`**: boot `useEffect` calls `restoreCharDesigns()` right after
+  `restoreSprites()`.
+- **`src/style.css`**: `.wiz-*` overlay/card/preview/status/opt/base-row/colors/swatches/
+  actions/apply-button (z 70, same palette as the panel).
+- **Tests**: NEW `tests/peru-character.test.ts` (11 cases: library integrity +
+  OUTLINE_RADIUS; defaultDesign per slot incl. case-insensitivity + bogus slot;
+  isCharId; sanitizeDesign null/per-field-fallback/3-digit-hex; setDesign save+readback;
+  sanitize-on-save + clearDesign; restoreCharDesigns valid/corrupt/invalid/bogus;
+  no-storage in-memory). IN `peru-sprite.test.ts`: NEW 6-case `drawCharacterBase`
+  suite (pacman wedge order + color + no eyes; pacman fright blue/white-flick; ghost
+  body+eyes order; ghost fright no eyes; none/unknown draws nothing;
+  characterBasePath path-only for pacman/ghost + false for none) + the player rider,
+  turkey photo and pill tests assert the clip ordering (fill → clip → drawImage) +
+  the turkey test the 0.88r rider local-frame coords + default-ghost-base-color
+  assertion (Zeca color from TURKEYS) + a new rider-offset test (setDesign dx/dy
+  shifts the drawImage frame by dx*r/dy*r for player AND turkey). `peru-character`
+  gained the offset cases: defaults centered; per-field valid offsets survive;
+  clamp ±0.5 / non-finite→0; setDesign sanitizes on save; old records without
+  dx/dy restore centered. **SMOKE FLAKE FIXED (latent merge-gate risk)**:
+  `peru-smoke.test.ts` randomized on the unseeded `Math.random` (failed once this
+  session with maxScore=30, needs >30); now stubs it with a mulberry32(1) PRNG for the
+  whole run (ghost AI included) → deterministic; measured seeds 1–8: maxScore 40–70,
+  deaths 11–12 (seed 1: 50/12).
+**Verify (after the photo-position change): 88 tests / 10 files green; `npm run build`
+clean (tsc + vite) — main JS 195 kB (65 kB gzip) + 8.5 kB css, ONNX chunks + ~24 MB
+wasm lazy.**
+Outstanding: (1) real phone/browser verification of the wizard flow (camera step, design
+step preview, cutout progress on a real device; CDN ~40 MB model + wasm on first use);
+(2) per AGENTS.md **do NOT merge PR #6** without an explicit user instruction + a fresh
+full-green `npm test` (and the vanilla `node pacman/tests/peru-*.js` gate if touching
+vanilla — this feature is React-only, vanilla untouched).
+
+## Photo silhouette cutout + sticker outline (pacman-react/) — DONE, on branch `feature/photo-outline`, NOT merged
+Goal (user): photo sprites "lose detail" at the ~28 px board size — the object's shape
+(silhouette/outline) should survive instead of a flat square, plus "fun emoji" filters.
+Chosen engine: **`@imgly/background-removal`** (in-browser ONNX/WASM, AGPL-3.0, model
+pulled once from the IMG.LY CDN `staticimgly.com/.../@imgly/background-removal-data/1.7.0/`
+on first use, then browser-cached). Branch was off `origin/main` @ `12e8939`.
+- **`src/game/silhouette.ts`** (new, lazy): `cutout(source, {model?, progress?})` →
+  transparent PNG `Blob` or **`null` on ANY failure** (no `window`, module import, model
+  download, inference throw, empty blob) so callers fall back to the plain square;
+  `preloadCutout()` warms the model (panel calls it on open, fire-and-forget).
+  Dynamic `import("@imgly/background-removal")` only at call time → no ONNX/WASM in the
+  initial bundle, node/vitest-safe. Default model `isnet_quint8` (smallest, phone CPU).
+  `package.json` adds `@imgly/background-removal@^1.7.0` + `onnxruntime-web@^1.21.0`
+  (the dev build in imgly's docs ERESOLVE-conflicts with its pinned peer dep; stable works).
+- **`src/game/sticker.ts`** (new, pure): `maskFromAlpha(rgba,w,h,threshold=128)`,
+  `dilate(mask,w,h,r)` (separable max-box, edge-clamped), `stickerOutline(rgba,w,h,
+  {radius=6, color=white, threshold=128})` — a flat opaque ring of `color` on pixels that
+  are background but within Chebyshev `radius` of the silhouette; object pixels and soft
+  alpha edges pass through untouched. No-op when the sprite is fully opaque (mask = whole
+  square → empty ring).
+- **`src/game/photo.ts`**: `ToSpriteOpts.outline?: number | boolean` (px radius, `true`
+  = 6, absent/false = off). `imageToSprite` runs `stickerOutline` after posterize +
+  medianCut and before `putImageData` (alpha-safe; a cutout PNG with transparent
+  background drops in with no other format change).
+- **`CustomizePanel.tsx`**: new "recorte de silhueta + contorno de sticker" checkbox
+  (`cutoutOn`, **default ON**, `.cp-opt` css in style.css). Assign flow `applyPhoto(slot,
+  source)`: cutout ON → toast "recortando silhueta… (%)" → `cutout(source, {progress})` →
+  success: `assignPhoto(slot, blob, {outline: 10})`; failure: toast "sem silhueta — usando
+  a foto inteira" + `assignPhoto(slot, source, {})`. OUTLINE_RADIUS=10 (thicker so the
+  ring survives the 256→28 px shrink). Camera capture goes through the same path.
+  `preloadCutout()` fires when the panel opens so the model download overlaps photo choice.
+- **Player "rider" look** (user follow-up: cutout alone "doesn't keep the
+  characteristic shape"; better = photo rides the classic Pac-Man): `drawPlayer`
+  (sprites.ts) now, when a photo is present, first draws the **classic yellow
+  Pac-Man body** (`PAC_YELLOW` `#ffdf00`, mouth wedge animated by the existing
+  `mouth` param, rotated to `facing`) and then draws the photo **on top,
+  always upright (no rotation)**, at `PLAYER_RIDER_SCALE = 0.88` of the radius
+  so a yellow rim + mouth stay visible around the cutout. A transparent
+  cutout shows the yellow around the face ("face piloting the Pac-Man"); an
+  opaque/no-cutout photo just covers the body (the old look). rafa fallback
+  (circle-masked) also rides. `drawMiniFlag` unchanged (plain circular photo).
+- **Tests**: new `tests/peru-outline.test.ts` — 11 cases (threshold at 127/128; dot →
+  3×3 grown set exactly; separable vs brute-force box max on a seeded random mask;
+  corner L; full-opaque no-op; exact ring geometry incl. the r-boundary; custom ring
+  color + in-mask soft alpha preserved; silhouette-with-mocked-imgly: Blob passthrough +
+  cfg `{model: isnet_quint8, output png, progress}`, empty-source short-circuit,
+  throw/empty → null, preload forwarding + error swallow). +2 cases in
+  `peru-sprite.test.ts`: (a) rider — `makeRecCtx` now records call order when a
+  `calls` array is passed; asserts yellow base (rotate → arc → `fillStyle:#ffdf00` →
+  fill) precedes the photo `drawImage` in unrotated coords `(x±0.88r)`; (b)
+  transparent-bg 8×8 source through `imageToSprite({outline:2})` at 256 → ring cols
+  62–63 / 192–193 white opaque, object red intact, outside transparent; same source
+  without `outline` stays a hole. Existing fallback-chain coords updated to the
+  0.88-scale upright frame.
+**Verify: 67 tests / 9 files green; `npm run build` clean — initial JS 187 kB (62 kB
+gzip), ONNX chunks + ~24 MB wasm are lazy (fetched only when silhueta is first used).**
+Outstanding: (1) real phone/browser verification — first cutout downloads the model
+(~40 MB) + wasm from the CDN; inference time on mid-range phones; (2) CDN blocked →
+silent fallback square + toast (covered by tests). **NOT merged** — per AGENTS.md, only
+merge when the user explicitly says so, and only after a fresh full-green `npm test`.
 
 ## Swipe steering (pacman-react/) — DONE, MERGED to main (PR #5, merge `7c1c065`)
 Goal (user): the on-screen DPad "doesn't work well" on the phone — replace it with

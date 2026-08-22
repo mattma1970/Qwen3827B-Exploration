@@ -2,10 +2,43 @@
 
 > Read this first to pick up where work left off. Last updated: 2026-08-22 (**photo
 > silhueta + sticker outline + player rider + character-design wizard + busy/download-
-> progress feedback all done on `feature/photo-outline` (pushed, PR #6 open), awaiting a
-> PR review/merge on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
+> progress feedback + mobile UX layout (top-banner pause, board-up, swipe pad, title
+> splash) all done on `feature/photo-outline` (pushed, PR #6 open), awaiting a PR
+> review/merge on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
 > `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user instruction, gated on a
 > full passing test run). Keep this file updated as you go so a future session can resume.
+
+## Mobile UX layout: top banner (pause), board-up, swipe pad, title splash (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+Goal (user): swiping works but the pause button + board are "in the way". Shift the board
+up, move the start/pause button into the top corner banner (hamburger stays left), add a
+bordered "swipe pad" under the board (laptop-trackpad look), and move the controls text
+into a retro splash box over the board that disappears when the match starts or the user
+personalizes. React-only, mobile-only (≤720px); desktop keeps the logo + in-flow hint.
+- **`src/components/TopBar.tsx`** (NEW, mobile only): fixed top banner. Left = hamburger
+  (opens the personalize panel, same toggle as the C hotkey). Right = play/pause (▶ at
+  title/gameover, ❚❚ when playing/paused) — moved here off the board; polls the paused flag
+  on a 300 ms tick (no engine event bus). Brand "PERU MAN react" centered.
+- **`src/components/GameBoard.tsx`**: new `overlay?: ReactNode` prop rendered inside
+  `.canvas-wrap` (now `position: relative`) — hosts the mobile splash over the canvas.
+- **`App.tsx`**: mobile renders `<TopBar>` + board + an in-flow bordered `.swipe-pad` under
+  the board; desktop keeps the logo + `.hint`. Removed the fixed top-left hamburger + the
+  bottom pause pill (`src/components/TouchControls.tsx` **DELETED**). New `atTitle` poll
+  (200 ms) shows a retro `.splash` box over the board on the title screen; it hides the
+  moment the match starts (state leaves "title") or the personalize panel opens
+  (`pointer-events:none` on the splash so a tap on the board passes through to start).
+- **`src/style.css`**: removed `.menu-btn`/`.hint .menu`/`.touch-controls`/`.pause-btn`;
+  added `.topbar`/`.topbar-btn`/`.topbar-brand`/`.topbar-badge`, `.splash`/`.splash-box`/
+  `.splash-title`/`.splash-lines`/`.splash-start` + `@keyframes splashblink`, `.swipe-pad`/
+  `.swipe-pad-hint`. Mobile media queries: `body { align-items: flex-start }` (so a tall
+  board is never clipped by flex centering) + `.wrap` top padding to clear the fixed
+  banner; removed the old bottom 96px pad (no more fixed bottom button).
+**Verify: 89 tests / 10 files green; `npm run build` clean (tsc + vite) — main JS 196 kB
+(65 kB gzip), css 10.7 kB. No suite covers the app shell (banner/layout/splash) — verified
+by `tsc` + `vite build` only.**
+Outstanding: (1) real-phone verification of the new layout (banner, board-up, pad,
+splash-over-board, tap-to-start passthrough); (2) per AGENTS.md **do NOT merge PR #6**
+without an explicit user instruction + a fresh full-green `npm test` (React-only, vanilla
+untouched).
 
 ## Busy / download-progress feedback (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
 Goal (user): "when the library is being downloaded and when the processing is happening

@@ -89,19 +89,22 @@ suites run in plain node. The sprite glue suite stubs `Image`/`document`/`canvas
 | C | Customize (drop a photo sprite) |
 | Swipe anywhere on screen | Mobile steering (finger direction turns Pac-Man; stationary finger = nothing) |
 | Tap screen | Mobile start / replay |
-| On-screen ▶ / ❚❚ button | Mobile start / pause (the old DPad arrows are gone) |
+| Top-banner ▶ / ❚❚ button | Mobile start / pause (top-right, cleared off the board for swiping) |
+| Top-banner ☰ button | Mobile: open the personalize panel (top-left) |
+| Bordered swipe pad (under board) | Mobile: the visible "swipe here" trackpad affordance (a full-screen swipe steers) |
+| Retro instructions splash | Mobile: shown over the board on the title screen; gone once the match starts or the panel opens |
 
 ## Layout
 
 ```
 pacman-react/
   src/main.tsx            React root
-  src/App.tsx             shell: board + touch controls + customize panel
-  src/style.css           styles (incl. mobile / touch controls)
+  src/App.tsx             shell: board + mobile top banner + swipe pad + splash + customize panel
+  src/style.css           styles (incl. mobile banner / swipe pad / title splash)
    src/components/
-     GameBoard.tsx         canvas, DPR sizing, rAF loop, keyboard + touch gesture input
-     TouchControls.tsx     pause/start pill (pointer: coarse / ontouchstart only)
-     CustomizePanel.tsx    6 photo-sprite drop zones (+ file-picker fallback, reset)
+      GameBoard.tsx         canvas, DPR sizing, rAF loop, keyboard + touch gesture input, board overlay
+      TopBar.tsx            mobile top banner: hamburger (left) + play/pause (right)
+      CustomizePanel.tsx    6 photo-sprite drop zones (+ file-picker fallback, reset)
      CameraCapture.tsx     camera step of the wizard (live video, flip, capture)
      CharacterWizard.tsx   2-step wizard: foto -> personagem (base, color, silhueta)
    src/game/               engine, ported 1:1 from the vanilla js/

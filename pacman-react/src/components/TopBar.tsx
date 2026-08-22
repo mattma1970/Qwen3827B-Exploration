@@ -36,9 +36,7 @@ export default function TopBar({ game, onMenu }: Props) {
       <button className="topbar-btn" aria-label="menu" onClick={onMenu}>
         &#9776;
       </button>
-      <span className="topbar-brand">
-        PERU&nbsp;MAN<span className="topbar-badge">react</span>
-      </span>
+      <span className="topbar-brand">BRAZIL&nbsp;MAN</span>
       <button className="topbar-btn" aria-label="pausa / começar" onPointerDown={(e) => {
         e.preventDefault();
         onPlay();

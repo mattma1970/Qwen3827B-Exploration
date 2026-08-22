@@ -24,23 +24,6 @@ body {
   text-shadow: 0 0 24px rgba(0, 156, 59, 0.25);
 }
 
-.ver-badge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px 3px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  vertical-align: super;
-  border-radius: 6px;
-  background: #7d2ae7;
-  color: #fff;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-  text-shadow: none;
-}
-
 /* board fills the screen width (up to its 480px logical size) and keeps its
    square aspect via height:auto on the canvas — no fixed CSS pixel size, so
    phones get the maximum board that fits */
@@ -536,20 +519,6 @@ canvas { display: block; }
   background-clip: text;
   color: transparent;
 }
-.topbar-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px 2px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border-radius: 5px;
-  background: #7d2ae7;
-  color: #fff;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-}
 .topbar-btn {
   flex: none;
   width: 44px;
@@ -647,13 +616,13 @@ canvas { display: block; }
 }
 
 @media (max-width: 720px) {
-  /* top-align so a tall board is never clipped by flex centering, and clear
-     the fixed top banner */
+  /* top-align so a tall board is never clipped by flex centering; the top
+     padding clears the fixed top banner (~56px) + a small gap above the board */
   body { align-items: flex-start; }
-  .wrap { padding-top: 58px; }
+  .wrap { padding-top: 74px; }
 }
 
 @media (max-width: 520px) {
   /* play/pause lives in the top banner now, so nothing to clear at the bottom */
-  .wrap { padding-left: 8px; padding-right: 8px; padding-bottom: 12px; padding-top: 58px; }
+  .wrap { padding-left: 8px; padding-right: 8px; padding-bottom: 12px; padding-top: 74px; }
 }

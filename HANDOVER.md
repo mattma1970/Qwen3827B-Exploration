@@ -32,9 +32,15 @@ personalizes. React-only, mobile-only (≤720px); desktop keeps the logo + in-fl
   `.swipe-pad-hint`. Mobile media queries: `body { align-items: flex-start }` (so a tall
   board is never clipped by flex centering) + `.wrap` top padding to clear the fixed
   banner; removed the old bottom 96px pad (no more fixed bottom button).
-**Verify: 89 tests / 10 files green; `npm run build` clean (tsc + vite) — main JS 196 kB
-(65 kB gzip), css 10.7 kB. No suite covers the app shell (banner/layout/splash) — verified
-by `tsc` + `vite build` only.**
+**Follow-up (same branch): rename to BRAZIL MAN** — top banner brand "PERU MAN react" →
+"BRAZIL MAN", in-game canvas title (game.ts `fillText`), desktop logo, and `index.html`
+tab title all renamed; the "react" version badge removed (its `.ver-badge`/`.topbar-badge`
+CSS deleted too). localStorage prefixes `peruman.sprite.*` / `peruman.char.*` deliberately
+UNCHANGED (persisted user data). Mobile `.wrap` `padding-top` bumped 58px → 74px to give a
+small gap above the board under the banner.
+**Verify: 89 tests / 10 files green; `npm run build` clean (tsc + vite). No suite covers
+the app shell (banner/layout/splash) or the canvas title render — verified by `tsc` +
+`vite build` only.**
 Outstanding: (1) real-phone verification of the new layout (banner, board-up, pad,
 splash-over-board, tap-to-start passthrough); (2) per AGENTS.md **do NOT merge PR #6**
 without an explicit user instruction + a fresh full-green `npm test` (React-only, vanilla

@@ -85,10 +85,7 @@ export default function App() {
     <main className="wrap">
       {isMobile && <TopBar game={game} onMenu={openMenu} />}
       {!isMobile && (
-        <h1 className="logo">
-          PERU&nbsp;MAN
-          <span className="ver-badge" title="React + TypeScript build">react</span>
-        </h1>
+        <h1 className="logo">BRAZIL&nbsp;MAN</h1>
       )}
       <GameBoard
         onGame={setGame}

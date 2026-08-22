@@ -156,19 +156,29 @@ function makeDoc() {
   return doc;
 }
 
-// recording ctx: every call is a no-op except drawImage (recorded).
-function makeRecCtx(rec: { drawImage: unknown[][] }): CanvasRenderingContext2D {
+// recording ctx: every call is a no-op except drawImage (recorded); if
+// rec.calls is provided, the order of canvas calls + fillStyle values is too.
+function makeRecCtx(rec: { drawImage: unknown[][]; calls?: string[] }): CanvasRenderingContext2D {
   const noop = () => {};
+  const tracked = new Set(["save", "restore", "translate", "rotate", "arc", "fill", "clip", "beginPath", "closePath"]);
   return new Proxy({}, {
     get: (_t, p) => {
       if (p === "drawImage")
         return (img: unknown, x: number, y: number, w: number, h: number) => {
           rec.drawImage.push([img, x, y, w, h]);
+          if (rec.calls) rec.calls.push("drawImage");
         };
       if (p === "createRadialGradient" || p === "createLinearGradient") return () => ({ addColorStop: noop });
+      if (typeof p === "string" && tracked.has(p))
+        return () => {
+          if (rec.calls) rec.calls.push(p);
+        };
       return noop;
     },
-    set: () => true,
+    set: (_t, p, v) => {
+      if (p === "fillStyle" && rec.calls) rec.calls.push("fillStyle:" + String(v));
+      return true;
+    },
   }) as unknown as CanvasRenderingContext2D;
 }
 
@@ -245,7 +255,11 @@ describe("player fallback chain", () => {
     sprites.drawPlayer(makeRecCtx(rec0), 10, 10, 14, 0.5, "right");
     expect(rec0.drawImage.length).toBe(1);
     expect(rec0.drawImage[0][0]).toBeTruthy();
-    expect(rec0.drawImage[0].slice(1)).toEqual([-14, -14, 28, 28]);
+    // rider photo: upright frame (x±s, y±s) with s = r * 0.88
+    expect(near(rec0.drawImage[0][1] as number, 10 - 14 * 0.88)).toBe(true);
+    expect(near(rec0.drawImage[0][2] as number, 10 - 14 * 0.88)).toBe(true);
+    expect(near(rec0.drawImage[0][3] as number, 14 * 1.76)).toBe(true);
+    expect(near(rec0.drawImage[0][4] as number, 14 * 1.76)).toBe(true);
 
     const fakePhoto = loadedFake(128, 128, () => [255, 215, 0, 255]);
     expect(photo.setSprite("player", fakePhoto as HTMLImageElement)).toBe(true);
@@ -256,7 +270,10 @@ describe("player fallback chain", () => {
     sprites.drawPlayer(makeRecCtx(rec1), 10, 10, 20, 0.5, "right");
     expect(rec1.drawImage.length).toBe(1);
     expect(rec1.drawImage[0][0]).toBe(fakePhoto);
-    expect(rec1.drawImage[0].slice(1)).toEqual([-20, -20, 40, 40]);
+    expect(near(rec1.drawImage[0][1] as number, 10 - 20 * 0.88)).toBe(true);
+    expect(near(rec1.drawImage[0][2] as number, 10 - 20 * 0.88)).toBe(true);
+    expect(near(rec1.drawImage[0][3] as number, 20 * 1.76)).toBe(true);
+    expect(near(rec1.drawImage[0][4] as number, 20 * 1.76)).toBe(true);
 
     const m1 = { drawImage: [] as unknown[][] };
     sprites.drawMiniFlag(makeRecCtx(m1), 30, 40, 8);
@@ -267,6 +284,37 @@ describe("player fallback chain", () => {
     expect(photo.clearPhoto("player")).toBe(true);
     expect(sprites.Sprites.player).toBeNull();
     expect(sprites.playerSprite() !== null).toBe(true); // back to rafa fallback
+  });
+});
+
+describe("player rider (photo on the classic yellow)", () => {
+  it("draws the yellow mouth-wedge base (rotated to facing) then the photo upright, unrotated", async () => {
+    const { sprites } = await fresh();
+    const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawPlayer(makeRecCtx(rec), 10, 10, 20, 0.5, "down");
+    expect(rec.drawImage.length).toBe(1);
+    const [img, dx, dy, dw, dh] = rec.drawImage[0];
+    expect(img).toBeTruthy();
+    expect(near(dx as number, 10 - 20 * 0.88)).toBe(true); // unrotated frame coords
+    expect(near(dy as number, 10 - 20 * 0.88)).toBe(true);
+    expect(near(dw as number, 20 * 1.76)).toBe(true);
+    expect(near(dh as number, 20 * 1.76)).toBe(true);
+    // base first: rotate -> wedge path -> PAC_YELLOW fill, photo after
+    const seq = rec.calls;
+    const iRotate = seq.indexOf("rotate");
+    const iFillStyle = seq.indexOf("fillStyle:#ffdf00");
+    const iFill = seq.indexOf("fill");
+    const iPhoto = seq.indexOf("drawImage");
+    expect(iRotate).toBeGreaterThanOrEqual(0);
+    expect(seq.indexOf("arc")).toBeGreaterThan(iRotate);
+    expect(iFillStyle).toBeGreaterThan(iRotate);
+    expect(iFill).toBeGreaterThan(iFillStyle);
+    expect(iPhoto).toBeGreaterThan(iFill);
+  });
+
+  it("exposes PAC_YELLOW matching the classic yellow", async () => {
+    const { sprites } = await fresh();
+    expect(sprites.PAC_YELLOW).toBe("#ffdf00");
   });
 });
 

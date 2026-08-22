@@ -27,8 +27,11 @@ Feature parity with the vanilla game:
   the browser (`@imgly/background-removal`, ONNX/WASM, model fetched once from
   the IMG.LY CDN and cached) so the sprite keeps the object's shape, plus a
   flat sticker ring around the silhouette (`src/game/sticker.ts`). If the
-  cutout can't run (no network, headless, model error) it falls back to the
-  plain square. The cutout/outline code is lazy: first use only.
+   cutout can't run (no network, headless, model error) it falls back to the
+   plain square. The cutout/outline code is lazy: first use only. For the
+   player specifically the cutout photo **rides on top of the classic yellow
+   Pac-Man** (animated mouth, rotated to the facing direction; the photo stays
+   upright) so it looks like the face is piloting the Pac-Man.
 - **Sound** - Web Audio SFX (M to mute)
 
 ## Run

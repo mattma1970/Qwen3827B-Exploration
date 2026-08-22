@@ -38,15 +38,29 @@ on first use, then browser-cached). Branch was off `origin/main` @ `12e8939`.
   a foto inteira" + `assignPhoto(slot, source, {})`. OUTLINE_RADIUS=10 (thicker so the
   ring survives the 256→28 px shrink). Camera capture goes through the same path.
   `preloadCutout()` fires when the panel opens so the model download overlaps photo choice.
+- **Player "rider" look** (user follow-up: cutout alone "doesn't keep the
+  characteristic shape"; better = photo rides the classic Pac-Man): `drawPlayer`
+  (sprites.ts) now, when a photo is present, first draws the **classic yellow
+  Pac-Man body** (`PAC_YELLOW` `#ffdf00`, mouth wedge animated by the existing
+  `mouth` param, rotated to `facing`) and then draws the photo **on top,
+  always upright (no rotation)**, at `PLAYER_RIDER_SCALE = 0.88` of the radius
+  so a yellow rim + mouth stay visible around the cutout. A transparent
+  cutout shows the yellow around the face ("face piloting the Pac-Man"); an
+  opaque/no-cutout photo just covers the body (the old look). rafa fallback
+  (circle-masked) also rides. `drawMiniFlag` unchanged (plain circular photo).
 - **Tests**: new `tests/peru-outline.test.ts` — 11 cases (threshold at 127/128; dot →
   3×3 grown set exactly; separable vs brute-force box max on a seeded random mask;
   corner L; full-opaque no-op; exact ring geometry incl. the r-boundary; custom ring
   color + in-mask soft alpha preserved; silhouette-with-mocked-imgly: Blob passthrough +
   cfg `{model: isnet_quint8, output png, progress}`, empty-source short-circuit,
-  throw/empty → null, preload forwarding + error swallow). +1 case in
-  `peru-sprite.test.ts`: transparent-bg 8×8 source through `imageToSprite({outline:2})`
-  at 256 → ring cols 62–63 / 192–193 white opaque, object red intact, outside transparent;
-  same source without `outline` stays a hole.
+  throw/empty → null, preload forwarding + error swallow). +2 cases in
+  `peru-sprite.test.ts`: (a) rider — `makeRecCtx` now records call order when a
+  `calls` array is passed; asserts yellow base (rotate → arc → `fillStyle:#ffdf00` →
+  fill) precedes the photo `drawImage` in unrotated coords `(x±0.88r)`; (b)
+  transparent-bg 8×8 source through `imageToSprite({outline:2})` at 256 → ring cols
+  62–63 / 192–193 white opaque, object red intact, outside transparent; same source
+  without `outline` stays a hole. Existing fallback-chain coords updated to the
+  0.88-scale upright frame.
 **Verify: 67 tests / 9 files green; `npm run build` clean — initial JS 187 kB (62 kB
 gzip), ONNX chunks + ~24 MB wasm are lazy (fetched only when silhueta is first used).**
 Outstanding: (1) real phone/browser verification — first cutout downloads the model

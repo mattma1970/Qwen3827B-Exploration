@@ -48,11 +48,37 @@ export function rafaEmojiReady(): boolean {
 
 export type Facing = "up" | "down" | "left" | "right";
 
-// Pac-man face: photo sprite (if assigned) -> emoji avatar -> hand-drawn BR flag,
-// clipped to the mouth wedge.
+// Classic arcade Pac-Man yellow (also the pellet/flag-diamond yellow).
+export const PAC_YELLOW = "#ffdf00";
+
+// Rider photo scale relative to the player radius: <1 keeps a visible yellow
+// rim (and the mouth wedge) around the cutout face.
+const PLAYER_RIDER_SCALE = 0.88;
+
+// Pac-man face: photo sprite (if assigned) -> emoji avatar -> hand-drawn BR flag.
+// With a photo: the classic yellow Pac-Man body (animated mouth wedge, rotated
+// to the facing direction) is drawn first, and the photo RIDES on top of it,
+// always upright — a transparent cutout (see photo.ts + silhouette.ts) keeps
+// the yellow visible around the object, so the face looks like it rides the
+// Pac-Man. Opaque photos simply cover the body (the old full-photo look).
 export function drawPlayer(c: CanvasRenderingContext2D, x: number, y: number, r: number, mouth: number, facing: string): void {
   const ang: number = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[facing as Facing] || 0;
   const img = playerSprite();
+  if (img) {
+    c.save();
+    c.translate(x, y);
+    c.rotate(ang);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
+    c.closePath();
+    c.fillStyle = PAC_YELLOW;
+    c.fill();
+    c.restore();
+    const s = r * PLAYER_RIDER_SCALE;
+    c.drawImage(img, x - s, y - s, s * 2, s * 2);
+    return;
+  }
   c.save();
   c.translate(x, y);
   c.rotate(ang);
@@ -60,14 +86,6 @@ export function drawPlayer(c: CanvasRenderingContext2D, x: number, y: number, r:
   c.moveTo(0, 0);
   c.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
   c.closePath();
-  if (img) {
-    c.save();
-    c.clip();
-    c.drawImage(img, -r, -r, r * 2, r * 2);
-    c.restore();
-    c.restore();
-    return;
-  }
   const g = c.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.15, 0, 0, r);
   g.addColorStop(0, "#2fd06b");
   g.addColorStop(1, "#009c3b");

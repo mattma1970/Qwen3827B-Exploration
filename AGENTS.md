@@ -5,4 +5,5 @@
 - **Never push new work to `main`.** `main` is the published branch (GitHub Pages serves from it).
 - When it's time to push: if the local branch has no upstream yet, create the remote branch with the same name and push to it — `git push -u origin <branch>`. Never redirect the push to `main`.
 - Landing changes on `main` is a separate, explicit step (merge the reviewed branch into `main`, then push `main`).
-- **Never auto-merge a pull request.** The agent may commit and push to the feature branch and may open a PR, but the actual merge into `main` is a **manual human action**. Do not run `gh pr merge` (or equivalent) to land a PR — leave the PR open for a person to review and merge.
+- **Never merge a pull request without explicit user instructions.** The agent may commit and push to the feature branch and may open a PR, but must **not** merge it on its own initiative. If — and only if — the user explicitly directs the merge (e.g. "merge the PR"), the agent may run `gh pr merge` (or equivalent).
+- **Pre-merge gate:** before merging, run the current app's tests and **ALL of them must pass** (for the React app: `cd pacman-react && npm test`; for vanilla changes: the `node pacman/tests/peru-*.js` suites). If any test fails, do not merge — report the failures instead.

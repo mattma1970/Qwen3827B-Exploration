@@ -3,12 +3,13 @@
 > Read this first to pick up where work left off. Last updated: 2026-08-22 (**photo
 > silhueta + sticker outline + player rider + character-design wizard + busy/download-
 > progress feedback + mobile UX layout (top-banner pause, board-up, swipe pad, title
-> splash) all done on `feature/photo-outline` (pushed, PR #6 open), awaiting a PR
-> review/merge on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
+> splash) + BRAZIL MAN rename all MERGED TO MAIN via PR #6 (`6ab09ed`) on explicit user
+> instruction after a fresh full-green run (89/89) — the "NOT merged" lines in the
+> sections below are the point-in-time state**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
 > `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user instruction, gated on a
 > full passing test run). Keep this file updated as you go so a future session can resume.
 
-## Mobile UX layout: top banner (pause), board-up, swipe pad, title splash (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+## Mobile UX layout: top banner (pause), board-up, swipe pad, title splash (pacman-react/) — DONE, MERGED to main via PR #6 (`6ab09ed`)
 Goal (user): swiping works but the pause button + board are "in the way". Shift the board
 up, move the start/pause button into the top corner banner (hamburger stays left), add a
 bordered "swipe pad" under the board (laptop-trackpad look), and move the controls text
@@ -46,7 +47,7 @@ splash-over-board, tap-to-start passthrough); (2) per AGENTS.md **do NOT merge P
 without an explicit user instruction + a fresh full-green `npm test` (React-only, vanilla
 untouched).
 
-## Busy / download-progress feedback (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+## Busy / download-progress feedback (pacman-react/) — DONE, MERGED to main via PR #6 (`6ab09ed`)
 Goal (user): "when the library is being downloaded and when the processing is happening
 on the phone there is no indication that something is in process of happening. it looks
 like things have crashed." Two stalls needed visible feedback: (a) the **first-time
@@ -85,7 +86,7 @@ wizard overlay (a real slow download is where it matters); (2) per AGENTS.md **d
 merge PR #6** without an explicit user instruction + a fresh full-green `npm test`
 (this feature is React-only, vanilla untouched).
 
-## Character-design wizard (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+## Character-design wizard (pacman-react/) — DONE, MERGED to main via PR #6 (`6ab09ed`)
 Goal (user): a bare cutout photo "loses the characteristic shape"; the user should CHOOSE
 how their photo is presented — a **2-step wizard** (2-step chosen as the "extensible"
 option): step 1 **foto** (camera or gallery), step 2 **personagem** (design the
@@ -191,7 +192,7 @@ step preview, cutout progress on a real device; CDN ~40 MB model + wasm on first
 full-green `npm test` (and the vanilla `node pacman/tests/peru-*.js` gate if touching
 vanilla — this feature is React-only, vanilla untouched).
 
-## Photo silhouette cutout + sticker outline (pacman-react/) — DONE, on branch `feature/photo-outline`, NOT merged
+## Photo silhouette cutout + sticker outline (pacman-react/) — DONE, MERGED to main via PR #6 (`6ab09ed`)
 Goal (user): photo sprites "lose detail" at the ~28 px board size — the object's shape
 (silhouette/outline) should survive instead of a flat square, plus "fun emoji" filters.
 Chosen engine: **`@imgly/background-removal`** (in-browser ONNX/WASM, AGPL-3.0, model
@@ -249,8 +250,8 @@ on first use, then browser-cached). Branch was off `origin/main` @ `12e8939`.
 gzip), ONNX chunks + ~24 MB wasm are lazy (fetched only when silhueta is first used).**
 Outstanding: (1) real phone/browser verification — first cutout downloads the model
 (~40 MB) + wasm from the CDN; inference time on mid-range phones; (2) CDN blocked →
-silent fallback square + toast (covered by tests). **NOT merged** — per AGENTS.md, only
-merge when the user explicitly says so, and only after a fresh full-green `npm test`.
+silent fallback square + toast (covered by tests). **Merged to main via PR #6
+`6ab09ed`** on explicit user instruction (2026-08-22) after a fresh full-green run.
 
 ## Swipe steering (pacman-react/) — DONE, MERGED to main (PR #5, merge `7c1c065`)
 Goal (user): the on-screen DPad "doesn't work well" on the phone — replace it with

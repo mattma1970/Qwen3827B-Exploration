@@ -22,7 +22,13 @@ Feature parity with the vanilla game:
 - **Power pills** - Canva wordmarks; eat one to turn turkeys blue and gobble them
 - **Photo sprites** - drop a photo to "emoji-fy" it (256x256, blur, posterize,
   median-cut to 16 flat colors) and assign it to Pacman, a turkey, or the pill
-  (photos stay local in `localStorage`, restored on reload)
+  (photos stay local in `localStorage`, restored on reload). With the
+  **"recorte de silhueta"** toggle on (default), the background is cut out in
+  the browser (`@imgly/background-removal`, ONNX/WASM, model fetched once from
+  the IMG.LY CDN and cached) so the sprite keeps the object's shape, plus a
+  flat sticker ring around the silhouette (`src/game/sticker.ts`). If the
+  cutout can't run (no network, headless, model error) it falls back to the
+  plain square. The cutout/outline code is lazy: first use only.
 - **Sound** - Web Audio SFX (M to mute)
 
 ## Run
@@ -69,7 +75,15 @@ pacman-react/
     CustomizePanel.tsx    6 photo-sprite drop zones (+ file-picker fallback, reset)
   src/game/               engine, ported 1:1 from the vanilla js/
     config.ts utils.ts audio.ts sprites.ts swipe.ts
-    photoSlots.ts photo.ts pacman.ts ghost.ts game.ts
+    photoSlots.ts photo.ts silhouette.ts sticker.ts pacman.ts ghost.ts game.ts
   public/img/rafa_emoji.png
   tests/                  vitest suites (ported from pacman/tests/)
 ```
+
+## Licenses
+
+- `@imgly/background-removal` is **AGPL-3.0** (see
+  `node_modules/@imgly/background-removal/LICENSE.md`). It runs entirely on the
+  user's device (no server, photos never leave the machine), but the AGPL
+  terms apply to the game build that ships it; the model weights themselves are
+  fetched from `staticimgly.com` on first use.

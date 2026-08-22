@@ -290,6 +290,40 @@ describe("imageToSprite pipeline", () => {
     expect(rep.right[0]).toBeGreaterThan(rep.right[1]);
   });
 
+  it("outline option adds a sticker ring around a transparent silhouette; absent = no ring", async () => {
+    const { photo, doc } = await fresh();
+    // 8x8 source: 4x4 red square in the center, transparent elsewhere
+    const sq = loadedFake(8, 8, (x, y) => (x >= 2 && x < 6 && y >= 2 && y < 6 ? [200, 0, 0, 255] : [0, 0, 0, 0]));
+    await photo.imageToSprite(sq, { colors: 4, blur: 0, outline: 2 });
+    const cv1 = doc.canvases[doc.canvases.length - 1];
+    const d1 = (cv1.__getData(256, 256) as { data: Uint8ClampedArray }).data;
+    const px1 = (x: number, y: number): number[] => {
+      const i = (y * 256 + x) * 4;
+      return [d1[i], d1[i + 1], d1[i + 2], d1[i + 3]];
+    };
+    // object occupies canvas [64,192)^2; the r=2 ring covers [62,194)^2
+    expect(px1(128, 128)[0]).toBeGreaterThan(0); // red object intact
+    expect(px1(128, 128)[3]).toBe(255);
+    expect(px1(62, 128)).toEqual([255, 255, 255, 255]); // ring starts at 64-2
+    expect(px1(63, 128)).toEqual([255, 255, 255, 255]); // ring adjacent to object
+    expect(px1(193, 128)).toEqual([255, 255, 255, 255]); // ring on the far side
+    expect(px1(194, 128)[3]).toBe(0); // one past the ring: background
+    expect(px1(61, 128)[3]).toBe(0); // one past the ring: background
+    expect(px1(5, 5)[3]).toBe(0); // far corner stays transparent
+
+    await photo.imageToSprite(sq, { colors: 4, blur: 0 });
+    const cv2 = doc.canvases[doc.canvases.length - 1];
+    const d2 = (cv2.__getData(256, 256) as { data: Uint8ClampedArray }).data;
+    const px2 = (x: number, y: number): number[] => {
+      const i = (y * 256 + x) * 4;
+      return [d2[i], d2[i + 1], d2[i + 2], d2[i + 3]];
+    };
+    expect(px2(128, 128)[3]).toBe(255); // object still there
+    expect(px2(63, 128)[3]).toBe(0); // where the ring would be: transparent
+    expect(px2(193, 128)[3]).toBe(0);
+    expect(px2(5, 5)[3]).toBe(0);
+  });
+
   it("File -> object URL path preserves a red|blue split", async () => {
     const { photo, doc } = await fresh();
     const blob = new Blob(["x"], { type: "image/png" });

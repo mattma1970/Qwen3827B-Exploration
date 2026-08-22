@@ -9,7 +9,8 @@ import type { Game } from "../game/game";
 import { TURKEYS } from "../game/config";
 import { drawCanvaPill, drawPlayer, drawTurkey } from "../game/sprites";
 import { SpriteData, allSlots, spriteUsage, SPRITE_QUOTA } from "../game/photoSlots";
-import { assignPhoto, clearPhoto } from "../game/photo";
+import { assignPhoto, clearPhoto, SourceImage } from "../game/photo";
+import { cutout, preloadCutout } from "../game/silhouette";
 import { AudioFX } from "../game/audio";
 import CameraCapture from "./CameraCapture";
 
@@ -150,6 +151,10 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   const [toast, setToast] = useState<{ msg: string; show: boolean }>({ msg: "", show: false });
   const [version, setVersion] = useState(0);
   const [lastUsed, setLastUsed] = useState("player");
+  // "recorte de silhueta" mode: cut the background out (in-browser model) so
+  // the sprite keeps the object's shape + a flat sticker ring, instead of a
+  // flat square. Default on; the model (~40 MB) downloads once, then caches.
+  const [cutoutOn, setCutoutOn] = useState(true);
   // slot the camera overlay is capturing for (null = camera closed)
   const [cameraSlot, setCameraSlot] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
@@ -171,12 +176,14 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
           game.togglePause();
           pausedByPanel.current = true;
         }
+        // warm the cutout model while the user is picking a photo
+        if (cutoutOn) preloadCutout();
       } else if (pausedByPanel.current && game) {
         game.togglePause();
         pausedByPanel.current = false;
       }
     },
-    [game, setOpen]
+    [game, setOpen, cutoutOn]
   );
 
   useEffect(() => {
@@ -197,21 +204,52 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
     registerToggle(() => setPanelRef.current(!openRef.current));
   });
 
-  const handleAssign = (slot: string, f: File) => {
-    if (!isImageFile(f)) {
-      showToast("só imagens, por favor");
-      return;
-    }
-    assignPhoto(slot, f).then(
+  // Thicker than the default so the ring survives the 256 -> ~28px shrink.
+  const OUTLINE_RADIUS = 10;
+
+  const doAssign = (slot: string, src: SourceImage, withOutline: boolean) => {
+    assignPhoto(slot, src, withOutline ? { outline: OUTLINE_RADIUS } : {}).then(
       (name) => {
         setLastUsed(name);
         bump();
         showToast("foto aplicada em " + slotLabel(name));
       },
       (err: unknown) => {
-        showToast(String(err).indexOf("quota") > -1 ? "armazenamento cheio \u2014 foto muito grande" : "n\u00e3o deu para ler essa imagem");
+        showToast(String(err).indexOf("quota") > -1 ? "armazenamento cheio — foto muito grande" : "não deu para ler essa imagem");
       }
     );
+  };
+
+  // Pipeline with the silhueta toggle: cutout (fallback to the whole photo if
+  // the model/network fails) -> emoji-fy, adding a sticker ring when cut.
+  const applyPhoto = (slot: string, source: SourceImage) => {
+    if (!cutoutOn) {
+      doAssign(slot, source, false);
+      return;
+    }
+    showToast("recortando silhueta…");
+    const onProgress = (_key: string, cur: number, total: number) => {
+      if (total > 0) {
+        const pct = Math.min(100, Math.round((cur / total) * 100));
+        showToast("recortando silhueta… " + pct + "%");
+      }
+    };
+    cutout(source as string | Blob | File, { progress: onProgress }).then((b) => {
+      if (b) {
+        doAssign(slot, b, true);
+      } else {
+        showToast("sem silhueta — usando a foto inteira");
+        doAssign(slot, source, false);
+      }
+    });
+  };
+
+  const handleAssign = (slot: string, f: File) => {
+    if (!isImageFile(f)) {
+      showToast("só imagens, por favor");
+      return;
+    }
+    applyPhoto(slot, f);
   };
 
   const handleCanvasDrop = (f: File | null) => {
@@ -228,20 +266,7 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   // stops the camera stream) and feed it through the same pipeline as a file
   const handleCapture = (slot: string, dataUrl: string) => {
     setCameraSlot(null);
-    assignPhoto(slot, dataUrl).then(
-      (name) => {
-        setLastUsed(name);
-        bump();
-        showToast("foto aplicada em " + slotLabel(name));
-      },
-      (err: unknown) => {
-        showToast(
-          String(err).indexOf("quota") > -1
-            ? "armazenamento cheio — foto muito grande"
-            : "não deu para usar essa foto"
-        );
-      }
-    );
+    applyPhoto(slot, dataUrl);
   };
 
   const handleClear = (slot: string) => {
@@ -281,6 +306,10 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
             </button>
           </div>
           <div className="cp-sub">solte uma foto em cada slot — ou clique para escolher</div>
+          <label className="cp-opt" title="recorta o fundo da foto no seu aparelho e desenha um contorno de sticker ao redor da silhueta">
+            <input type="checkbox" checked={cutoutOn} onChange={(e) => setCutoutOn(e.target.checked)} />
+            <span>recorte de silhueta + contorno de sticker</span>
+          </label>
           <div className="cp-grid">
             {slotList().map((slot) => (
               <SlotZone

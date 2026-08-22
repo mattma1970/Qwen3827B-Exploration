@@ -1,9 +1,58 @@
 # PERU MAN — handover / resume notes
 
-> Read this first to pick up where work left off. Last updated: 2026-08-22 (**swipe steering
-> merged to main** via PR #5, merge `7c1c065`; camera capture merged via PR #4, merge `97fa5b1`;
-> AGENTS.md now allows `gh pr merge` ONLY on explicit user instruction, gated on a full
-> passing test run). Keep this file updated as you go so a future session can resume.
+> Read this first to pick up where work left off. Last updated: 2026-08-22 (**photo
+> silhueta + sticker outline done on `feature/photo-outline`, awaiting a PR review/merge
+> on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera
+> capture via PR #4 `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user
+> instruction, gated on a full passing test run). Keep this file updated as you go so a
+> future session can resume.
+
+## Photo silhouette cutout + sticker outline (pacman-react/) — DONE, on branch `feature/photo-outline`, NOT merged
+Goal (user): photo sprites "lose detail" at the ~28 px board size — the object's shape
+(silhouette/outline) should survive instead of a flat square, plus "fun emoji" filters.
+Chosen engine: **`@imgly/background-removal`** (in-browser ONNX/WASM, AGPL-3.0, model
+pulled once from the IMG.LY CDN `staticimgly.com/.../@imgly/background-removal-data/1.7.0/`
+on first use, then browser-cached). Branch was off `origin/main` @ `12e8939`.
+- **`src/game/silhouette.ts`** (new, lazy): `cutout(source, {model?, progress?})` →
+  transparent PNG `Blob` or **`null` on ANY failure** (no `window`, module import, model
+  download, inference throw, empty blob) so callers fall back to the plain square;
+  `preloadCutout()` warms the model (panel calls it on open, fire-and-forget).
+  Dynamic `import("@imgly/background-removal")` only at call time → no ONNX/WASM in the
+  initial bundle, node/vitest-safe. Default model `isnet_quint8` (smallest, phone CPU).
+  `package.json` adds `@imgly/background-removal@^1.7.0` + `onnxruntime-web@^1.21.0`
+  (the dev build in imgly's docs ERESOLVE-conflicts with its pinned peer dep; stable works).
+- **`src/game/sticker.ts`** (new, pure): `maskFromAlpha(rgba,w,h,threshold=128)`,
+  `dilate(mask,w,h,r)` (separable max-box, edge-clamped), `stickerOutline(rgba,w,h,
+  {radius=6, color=white, threshold=128})` — a flat opaque ring of `color` on pixels that
+  are background but within Chebyshev `radius` of the silhouette; object pixels and soft
+  alpha edges pass through untouched. No-op when the sprite is fully opaque (mask = whole
+  square → empty ring).
+- **`src/game/photo.ts`**: `ToSpriteOpts.outline?: number | boolean` (px radius, `true`
+  = 6, absent/false = off). `imageToSprite` runs `stickerOutline` after posterize +
+  medianCut and before `putImageData` (alpha-safe; a cutout PNG with transparent
+  background drops in with no other format change).
+- **`CustomizePanel.tsx`**: new "recorte de silhueta + contorno de sticker" checkbox
+  (`cutoutOn`, **default ON**, `.cp-opt` css in style.css). Assign flow `applyPhoto(slot,
+  source)`: cutout ON → toast "recortando silhueta… (%)" → `cutout(source, {progress})` →
+  success: `assignPhoto(slot, blob, {outline: 10})`; failure: toast "sem silhueta — usando
+  a foto inteira" + `assignPhoto(slot, source, {})`. OUTLINE_RADIUS=10 (thicker so the
+  ring survives the 256→28 px shrink). Camera capture goes through the same path.
+  `preloadCutout()` fires when the panel opens so the model download overlaps photo choice.
+- **Tests**: new `tests/peru-outline.test.ts` — 11 cases (threshold at 127/128; dot →
+  3×3 grown set exactly; separable vs brute-force box max on a seeded random mask;
+  corner L; full-opaque no-op; exact ring geometry incl. the r-boundary; custom ring
+  color + in-mask soft alpha preserved; silhouette-with-mocked-imgly: Blob passthrough +
+  cfg `{model: isnet_quint8, output png, progress}`, empty-source short-circuit,
+  throw/empty → null, preload forwarding + error swallow). +1 case in
+  `peru-sprite.test.ts`: transparent-bg 8×8 source through `imageToSprite({outline:2})`
+  at 256 → ring cols 62–63 / 192–193 white opaque, object red intact, outside transparent;
+  same source without `outline` stays a hole.
+**Verify: 67 tests / 9 files green; `npm run build` clean — initial JS 187 kB (62 kB
+gzip), ONNX chunks + ~24 MB wasm are lazy (fetched only when silhueta is first used).**
+Outstanding: (1) real phone/browser verification — first cutout downloads the model
+(~40 MB) + wasm from the CDN; inference time on mid-range phones; (2) CDN blocked →
+silent fallback square + toast (covered by tests). **NOT merged** — per AGENTS.md, only
+merge when the user explicitly says so, and only after a fresh full-green `npm test`.
 
 ## Swipe steering (pacman-react/) — DONE, MERGED to main (PR #5, merge `7c1c065`)
 Goal (user): the on-screen DPad "doesn't work well" on the phone — replace it with

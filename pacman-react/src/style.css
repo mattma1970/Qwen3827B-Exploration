@@ -122,6 +122,21 @@ canvas { display: block; }
 }
 .cp-close:hover { color: #fff; }
 .cp-sub { font-size: 11px; color: #6d74a8; margin-bottom: 12px; }
+.cp-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #9aa0d9;
+  background: #191942;
+  border: 1px solid #3d3d85;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.cp-opt input { accent-color: #ffdf00; cursor: pointer; }
+.cp-opt:hover { border-color: #ffdf00; }
 
 .cp-grid {
   display: grid;

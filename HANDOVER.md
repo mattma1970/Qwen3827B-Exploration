@@ -27,17 +27,24 @@ work is one more commit on the same branch/PR #6.
   HEX_RE 3–8 digit), `CharDesigns` in-memory map, `designFor/setDesign/clearDesign`
   (localStorage `peruman.char.<slot>`, swallow-all errors, false when no storage),
   `restoreCharDesigns()` at boot.
-- **`src/game/sprites.ts`**: NEW `BaseOpts {facing?, mouth?, fright?, flick?}` and
-  `export drawCharacterBase(c, base, color, r, opts)` — "pacman" (rotated mouth wedge,
-  fright→scared blue #5b7fff / flick white with squiggle face), "ghost" (dome + 3-scallop
-  skirt, eyes look toward facing, same fright face), "none"/unknown → nothing.
-  `drawPlayer` photo path = `designFor("player")` base (rotated/mouth-animated) then the
-  photo UPRIGHT at `PLAYER_RIDER_SCALE=0.88` (no rotation). `drawTurkey` photo path =
-  `designFor(name)` base in the local frame (flips with facing, bobs) then upright
-  bobbing photo at 0.88 (replaces the old 1.15r full-square draw; test coords updated).
-  `drawCanvaPill` photo path = `designFor("pill")` base on the glowing disc, mouth
-  wiggling on the pulse clock, photo riding at 0.88 of rb. `frightFaceGhost` helper
-  (squiggle eyes + wave mouth). `drawMiniFlag` unchanged.
+- **`src/game/sprites.ts`**: NEW `BaseOpts {facing?, mouth?, fright?, flick?}`,
+  `export characterBasePath(c, base, r, opts): boolean` (the base's outline as a path —
+  pacman wedge rotated to facing; path coords freeze at build time, so the internal
+  save/rotate/.../restore is safe; false for "none"/unknown) and
+  `export drawCharacterBase(c, base, color, r, opts)` = fill that path in `color`
+  (fright→scared blue #5b7fff / flick white + squiggle face) + ghost eyes toward
+  facing; "none"/unknown → nothing. **Rider photos are CLIPPED to the base outline
+  (user ask: "crop when it extends outside the character")**: `drawPlayer` photo path =
+  `designFor("player")` base (rotated/mouth-animated), then clip to `characterBasePath`
+  + photo UPRIGHT at `PLAYER_RIDER_SCALE=0.88` (no rotation); "none" base → no clip.
+  `drawTurkey` photo path: the hand-drawn x-flip is hand-drawn-art-only now — the base
+  is drawn UPRIGHT at the bobbed spot (translate(x, y+bob); it already faces via
+  `facing`, which also fixes the left-facing pupils/mouth mirroring), then clip +
+  upright bobbing photo at 0.88 (replaces the old 1.15r full-square draw; test coords
+  are now local-frame, ±s around the translated origin). `drawCanvaPill` photo path =
+  `designFor("pill")` base on the glowing disc (mouth wiggling on the pulse clock),
+  clip + photo at 0.88 of rb. Wizard 256px preview clips too (same look as the board).
+  `frightFaceGhost` helper (squiggle eyes + wave mouth). `drawMiniFlag` unchanged.
 - **`src/components/CharacterWizard.tsx`** (NEW): props `{slot, slotLabel, photo,
   initial, onApply, onCancel}`; `photo!=null` → straight to step 2. Step 1 wraps
   `CameraCapture` (new optional `onGallery` prop: "cancelar" becomes "voltar" + a
@@ -67,16 +74,20 @@ work is one more commit on the same branch/PR #6.
   OUTLINE_RADIUS; defaultDesign per slot incl. case-insensitivity + bogus slot;
   isCharId; sanitizeDesign null/per-field-fallback/3-digit-hex; setDesign save+readback;
   sanitize-on-save + clearDesign; restoreCharDesigns valid/corrupt/invalid/bogus;
-  no-storage in-memory). IN `peru-sprite.test.ts`: NEW 5-case `drawCharacterBase` suite
-  (pacman wedge order + color + no eyes; pacman fright blue/white-flick; ghost body+
-  eyes order; ghost fright no eyes; none/unknown draws nothing) + the turkey photo test
-  updated to the 0.88r rider coords + default-ghost-base-color assertion (Zeca color from
-  TURKEYS). **SMOKE FLAKE FIXED (latent merge-gate risk)**: `peru-smoke.test.ts`
-  randomized on the unseeded `Math.random` (failed once this session with maxScore=30,
-  needs >30); now stubs it with a mulberry32(1) PRNG for the whole run (ghost AI included)
-  → deterministic; measured seeds 1–8: maxScore 40–70, deaths 11–12 (seed 1: 50/12).
-**Verify: 85 tests / 10 files green; `npm run build` clean (tsc + vite) — main JS
-193 kB (64 kB gzip) + 8 kB css, ONNX chunks + ~24 MB wasm lazy.**
+  no-storage in-memory). IN `peru-sprite.test.ts`: NEW 6-case `drawCharacterBase`
+  suite (pacman wedge order + color + no eyes; pacman fright blue/white-flick; ghost
+  body+eyes order; ghost fright no eyes; none/unknown draws nothing;
+  characterBasePath path-only for pacman/ghost + false for none) + the player rider,
+  turkey photo and pill tests assert the clip ordering (fill → clip → drawImage) +
+  the turkey test the 0.88r rider local-frame coords + default-ghost-base-color
+  assertion (Zeca color from TURKEYS). **SMOKE FLAKE FIXED (latent merge-gate risk)**:
+  `peru-smoke.test.ts` randomized on the unseeded `Math.random` (failed once this
+  session with maxScore=30, needs >30); now stubs it with a mulberry32(1) PRNG for the
+  whole run (ghost AI included) → deterministic; measured seeds 1–8: maxScore 40–70,
+  deaths 11–12 (seed 1: 50/12).
+**Verify (after the photo-clip change): 86 tests / 10 files green; `npm run build`
+clean (tsc + vite) — main JS 194 kB (64 kB gzip) + 8 kB css, ONNX chunks + ~24 MB wasm
+lazy.**
 Outstanding: (1) real phone/browser verification of the wizard flow (camera step, design
 step preview, cutout progress on a real device; CDN ~40 MB model + wasm on first use);
 (2) per AGENTS.md **do NOT merge PR #6** without an explicit user instruction + a fresh

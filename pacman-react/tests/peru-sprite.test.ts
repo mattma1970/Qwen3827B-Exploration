@@ -256,9 +256,10 @@ describe("player fallback chain", () => {
     sprites.drawPlayer(makeRecCtx(rec0), 10, 10, 14, 0.5, "right");
     expect(rec0.drawImage.length).toBe(1);
     expect(rec0.drawImage[0][0]).toBeTruthy();
-    // rider photo: upright frame (x±s, y±s) with s = r * 0.88
-    expect(near(rec0.drawImage[0][1] as number, 10 - 14 * 0.88)).toBe(true);
-    expect(near(rec0.drawImage[0][2] as number, 10 - 14 * 0.88)).toBe(true);
+    // rider photo: upright, centered on the character (±s around the
+    // translated origin) with s = r * 0.88
+    expect(near(rec0.drawImage[0][1] as number, -(14 * 0.88))).toBe(true);
+    expect(near(rec0.drawImage[0][2] as number, -(14 * 0.88))).toBe(true);
     expect(near(rec0.drawImage[0][3] as number, 14 * 1.76)).toBe(true);
     expect(near(rec0.drawImage[0][4] as number, 14 * 1.76)).toBe(true);
 
@@ -271,8 +272,8 @@ describe("player fallback chain", () => {
     sprites.drawPlayer(makeRecCtx(rec1), 10, 10, 20, 0.5, "right");
     expect(rec1.drawImage.length).toBe(1);
     expect(rec1.drawImage[0][0]).toBe(fakePhoto);
-    expect(near(rec1.drawImage[0][1] as number, 10 - 20 * 0.88)).toBe(true);
-    expect(near(rec1.drawImage[0][2] as number, 10 - 20 * 0.88)).toBe(true);
+    expect(near(rec1.drawImage[0][1] as number, -(20 * 0.88))).toBe(true);
+    expect(near(rec1.drawImage[0][2] as number, -(20 * 0.88))).toBe(true);
     expect(near(rec1.drawImage[0][3] as number, 20 * 1.76)).toBe(true);
     expect(near(rec1.drawImage[0][4] as number, 20 * 1.76)).toBe(true);
 
@@ -296,21 +297,24 @@ describe("player rider (photo on the classic yellow)", () => {
     expect(rec.drawImage.length).toBe(1);
     const [img, dx, dy, dw, dh] = rec.drawImage[0];
     expect(img).toBeTruthy();
-    expect(near(dx as number, 10 - 20 * 0.88)).toBe(true); // unrotated frame coords
-    expect(near(dy as number, 10 - 20 * 0.88)).toBe(true);
+    expect(near(dx as number, -(20 * 0.88))).toBe(true); // upright, centered on the character
+    expect(near(dy as number, -(20 * 0.88))).toBe(true);
     expect(near(dw as number, 20 * 1.76)).toBe(true);
     expect(near(dh as number, 20 * 1.76)).toBe(true);
-    // base first: rotate -> wedge path -> PAC_YELLOW fill, photo after
+    // base first: rotate -> wedge path -> PAC_YELLOW fill, then the photo,
+    // clipped to the base outline
     const seq = rec.calls;
     const iRotate = seq.indexOf("rotate");
     const iFillStyle = seq.indexOf("fillStyle:#ffdf00");
     const iFill = seq.indexOf("fill");
+    const iClip = seq.indexOf("clip");
     const iPhoto = seq.indexOf("drawImage");
     expect(iRotate).toBeGreaterThanOrEqual(0);
     expect(seq.indexOf("arc")).toBeGreaterThan(iRotate);
     expect(iFillStyle).toBeGreaterThan(iRotate);
     expect(iFill).toBeGreaterThan(iFillStyle);
-    expect(iPhoto).toBeGreaterThan(iFill);
+    expect(iClip).toBeGreaterThan(iFill);
+    expect(iPhoto).toBeGreaterThan(iClip);
   });
 
   it("exposes PAC_YELLOW matching the classic yellow", async () => {
@@ -434,20 +438,24 @@ describe("turkey + pill slots", () => {
     sprites.drawTurkey(makeRecCtx(t0), 10, 10, 12, "#e63946", { name: "Zeca", facing: "right" });
     expect(t0.drawImage.length).toBe(1);
     expect(t0.drawImage[0][0]).toBe(turkeyPhoto);
-    // rider photo: upright frame (x±s, y+bob±s) with s = r * 0.88
-    expect(near(t0.drawImage[0][1] as number, 10 - 12 * 0.88)).toBe(true);
-    expect(near(t0.drawImage[0][2] as number, 10 - 12 * 0.88)).toBe(true);
+    // rider photo: upright, centered on the bobbed position (±s around the
+    // translated origin) with s = r * 0.88
+    expect(near(t0.drawImage[0][1] as number, -(12 * 0.88))).toBe(true);
+    expect(near(t0.drawImage[0][2] as number, -(12 * 0.88))).toBe(true);
     expect(near(t0.drawImage[0][3] as number, 12 * 1.76)).toBe(true);
     expect(near(t0.drawImage[0][4] as number, 12 * 1.76)).toBe(true);
-    // the default ghost base is drawn in the turkey's own color, before the photo
+    // the default ghost base is drawn in the turkey's own color, then the
+    // photo, clipped to the base outline
     const zecaColor = TURKEYS.find((t) => t.name === "Zeca").color;
     const seq = t0.calls;
     const iFillStyle = seq.indexOf("fillStyle:" + zecaColor);
     const iFill = seq.indexOf("fill");
+    const iClip = seq.indexOf("clip");
     const iPhoto = seq.indexOf("drawImage");
     expect(iFillStyle).toBeGreaterThanOrEqual(0);
     expect(iFill).toBeGreaterThan(iFillStyle);
-    expect(iPhoto).toBeGreaterThan(iFill);
+    expect(iClip).toBeGreaterThan(iFill);
+    expect(iPhoto).toBeGreaterThan(iClip);
 
     const t1 = { drawImage: [] as unknown[][] };
     sprites.drawTurkey(makeRecCtx(t1), 10, 10, 12, "#e63946", { name: "Zeca", fright: true, flick: true });
@@ -480,7 +488,7 @@ describe("drawCharacterBase", () => {
     sprites.drawCharacterBase(makeRecCtx(rec), "pacman", "#ff0000", 20, { facing: "down", mouth: 0.4 });
     const seq = rec.calls;
     expect(seq[0]).toBe("save");
-    expect(seq[seq.length - 1]).toBe("restore");
+    expect(seq[seq.length - 1]).toBe("fill");
     const iRotate = seq.indexOf("rotate");
     const iArc = seq.indexOf("arc");
     const iStyle = seq.indexOf("fillStyle:#ff0000");
@@ -539,6 +547,24 @@ describe("drawCharacterBase", () => {
       expect(rec.calls.length).toBe(0);
       expect(rec.drawImage.length).toBe(0);
     }
+  });
+
+  it("characterBasePath: pacman (rotated to facing) and ghost (dome + 3 scallops) are path-only; none builds nothing", async () => {
+    const { sprites } = await fresh();
+    const p = { drawImage: [] as unknown[][], calls: [] as string[] };
+    expect(sprites.characterBasePath(makeRecCtx(p), "pacman", 20, { facing: "down" })).toBe(true);
+    const iRot = p.calls.indexOf("rotate");
+    const iArc = p.calls.indexOf("arc");
+    expect(iRot).toBeGreaterThan(0);
+    expect(iArc).toBeGreaterThan(iRot);
+    expect(p.calls.indexOf("closePath")).toBeGreaterThan(iArc);
+    expect(p.calls.indexOf("fill")).toBe(-1); // path only — no fill/stroke
+    const g = { drawImage: [] as unknown[][], calls: [] as string[] };
+    expect(sprites.characterBasePath(makeRecCtx(g), "ghost", 20, {})).toBe(true);
+    expect(g.calls.filter((x) => x === "arc").length).toBe(4); // dome + 3 scallop bumps
+    const n = { drawImage: [] as unknown[][], calls: [] as string[] };
+    expect(sprites.characterBasePath(makeRecCtx(n), "none", 20, {})).toBe(false);
+    expect(n.calls.length).toBe(0);
   });
 });
 

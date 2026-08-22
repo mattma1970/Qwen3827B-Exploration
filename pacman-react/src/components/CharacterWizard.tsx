@@ -10,7 +10,7 @@
 // pipeline step here + one field in game/character.ts.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PLAYER_RIDER_SCALE, drawCharacterBase } from "../game/sprites";
+import { PLAYER_RIDER_SCALE, characterBasePath, drawCharacterBase } from "../game/sprites";
 import { SourceImage, imageToSprite } from "../game/photo";
 import { cutout } from "../game/silhouette";
 import { CHARS, CHAR_COLORS, CharDesign, OUTLINE_RADIUS } from "../game/character";
@@ -135,10 +135,14 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
     c.clearRect(0, 0, PREV_SIZE, PREV_SIZE);
     c.save();
     c.translate(PREV_SIZE / 2, PREV_SIZE / 2 + 6);
-    drawCharacterBase(c, d.base, d.color, PREV_R, { facing: "right", mouth: 0.55 });
+    const bo = { facing: "right" as const, mouth: 0.55 };
+    drawCharacterBase(c, d.base, d.color, PREV_R, bo);
     if (img) {
       const s = PREV_R * PLAYER_RIDER_SCALE;
+      c.save();
+      if (characterBasePath(c, d.base, PREV_R, bo)) c.clip();
       c.drawImage(img, -s, -s, s * 2, s * 2);
+      c.restore();
     }
     c.restore();
   }, [step, d, img]);

@@ -39,11 +39,14 @@ Feature parity with the vanilla game:
   ring around the silhouette (`src/game/sticker.ts`). If the cutout can't run
   (no network, headless, model error) it falls back to the plain square. The
   cutout/outline code is lazy: first use only. The photo **rides on top of its
-  base character, always upright** (the base rotates/animates underneath) so
-  the face looks like it's piloting the character — e.g. the player's default
-  is a classic yellow Pac-Man, defaulting each turkey to the classic ghost in
-  its own color, and the pill to a Canva-purple Pac-Man. The per-slot design is
-  saved under `peruman.char.<slot>` and restored at boot (`restoreCharDesigns`).
+  base character, always upright, and clipped to the base's outline** (it may
+  cover the character but never extends outside it; the base rotates/animates
+  underneath) so the face looks like it's piloting the character — e.g. the
+  player's default is a classic yellow Pac-Man, defaulting each turkey to the
+  classic ghost in its own color, and the pill to a Canva-purple Pac-Man. The per-slot design is
+  saved under `peruman.char.<slot>` and restored at boot
+  (`restoreCharDesigns`). "SÓ RECORTE" (no base) has no outline to clip
+  against — the photo shows as-is.
 - **Sound** - Web Audio SFX (M to mute)
 
 ## Run

@@ -7,6 +7,7 @@
 
 import { Sprites } from "./sprites";
 import { stickerOutline } from "./sticker";
+import { clearDesign } from "./character";
 import {
   SPRITE_SIZE,
   SPRITE_LS_PREFIX,
@@ -283,6 +284,7 @@ export function clearPhoto(slot: string): boolean {
   if (!s) return false;
   setSprite(s, null);
   delete SpriteData[s];
+  clearDesign(s);
   if (hasStorage()) {
     try {
       localStorage.removeItem(SPRITE_LS_PREFIX + s);

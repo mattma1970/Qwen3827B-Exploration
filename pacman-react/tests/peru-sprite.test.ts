@@ -9,6 +9,7 @@
 // a fresh Sprites/SpriteData registry per scenario (mirroring the original's
 // per-sandbox load).
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TURKEYS } from "../src/game/config";
 
 type Sample = (x: number, y: number) => [number, number, number, number];
 interface ImgEntry {
@@ -423,20 +424,30 @@ describe("persistence", () => {
 });
 
 describe("turkey + pill slots", () => {
-  it("photo turkey/pill replace hand-drawn art as one unit; clearing falls back", async () => {
+  it("photo turkey/pill ride their character base; clearing falls back to hand-drawn art", async () => {
     const { sprites, photo } = await fresh();
     const turkeyPhoto = loadedFake(64, 64, () => [230, 57, 70, 255]);
     expect(photo.setSprite("Zeca", turkeyPhoto as HTMLImageElement)).toBe(true);
     expect(sprites.Sprites.ghosts.Zeca).toBe(turkeyPhoto);
 
-    const t0 = { drawImage: [] as unknown[][] };
+    const t0 = { drawImage: [] as unknown[][], calls: [] as string[] };
     sprites.drawTurkey(makeRecCtx(t0), 10, 10, 12, "#e63946", { name: "Zeca", facing: "right" });
     expect(t0.drawImage.length).toBe(1);
     expect(t0.drawImage[0][0]).toBe(turkeyPhoto);
-    expect(near(t0.drawImage[0][1] as number, -13.8)).toBe(true);
-    expect(near(t0.drawImage[0][2] as number, -13.8)).toBe(true);
-    expect(near(t0.drawImage[0][3] as number, 27.6)).toBe(true);
-    expect(near(t0.drawImage[0][4] as number, 27.6)).toBe(true);
+    // rider photo: upright frame (x±s, y+bob±s) with s = r * 0.88
+    expect(near(t0.drawImage[0][1] as number, 10 - 12 * 0.88)).toBe(true);
+    expect(near(t0.drawImage[0][2] as number, 10 - 12 * 0.88)).toBe(true);
+    expect(near(t0.drawImage[0][3] as number, 12 * 1.76)).toBe(true);
+    expect(near(t0.drawImage[0][4] as number, 12 * 1.76)).toBe(true);
+    // the default ghost base is drawn in the turkey's own color, before the photo
+    const zecaColor = TURKEYS.find((t) => t.name === "Zeca").color;
+    const seq = t0.calls;
+    const iFillStyle = seq.indexOf("fillStyle:" + zecaColor);
+    const iFill = seq.indexOf("fill");
+    const iPhoto = seq.indexOf("drawImage");
+    expect(iFillStyle).toBeGreaterThanOrEqual(0);
+    expect(iFill).toBeGreaterThan(iFillStyle);
+    expect(iPhoto).toBeGreaterThan(iFill);
 
     const t1 = { drawImage: [] as unknown[][] };
     sprites.drawTurkey(makeRecCtx(t1), 10, 10, 12, "#e63946", { name: "Zeca", fright: true, flick: true });
@@ -459,6 +470,75 @@ describe("turkey + pill slots", () => {
     sprites.drawCanvaPill(makeRecCtx(p2), 10, 10, 10, 0);
     expect(p2.drawImage.length).toBe(1);
     expect(p2.drawImage[0][0]).not.toBe(pillPhoto); // falls back to the Canva wordmark
+  });
+});
+
+describe("drawCharacterBase", () => {
+  it("pacman: wedge rotated to facing, filled in the requested color, then restored", async () => {
+    const { sprites } = await fresh();
+    const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawCharacterBase(makeRecCtx(rec), "pacman", "#ff0000", 20, { facing: "down", mouth: 0.4 });
+    const seq = rec.calls;
+    expect(seq[0]).toBe("save");
+    expect(seq[seq.length - 1]).toBe("restore");
+    const iRotate = seq.indexOf("rotate");
+    const iArc = seq.indexOf("arc");
+    const iStyle = seq.indexOf("fillStyle:#ff0000");
+    const iFill = seq.indexOf("fill");
+    expect(iRotate).toBeGreaterThan(0);
+    expect(iArc).toBeGreaterThan(iRotate);
+    expect(iStyle).toBeGreaterThan(iArc);
+    expect(iFill).toBeGreaterThan(iStyle);
+    // no eyes, no images — just the wedge
+    expect(seq.indexOf("fillStyle:#fff")).toBe(-1);
+    expect(rec.drawImage.length).toBe(0);
+  });
+
+  it("pacman: fright mode paints the scared blue (white when flicking), no wedge color", async () => {
+    const { sprites } = await fresh();
+    const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawCharacterBase(makeRecCtx(rec), "pacman", "#ffdf00", 20, { fright: true });
+    expect(rec.calls.indexOf("fillStyle:#5b7fff")).toBeGreaterThanOrEqual(0);
+    expect(rec.calls.indexOf("fillStyle:#ffdf00")).toBe(-1);
+    const rec2 = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawCharacterBase(makeRecCtx(rec2), "pacman", "#ffdf00", 20, { fright: true, flick: true });
+    expect(rec2.calls.indexOf("fillStyle:#f8f9ff")).toBeGreaterThanOrEqual(0);
+    expect(rec2.calls.indexOf("fillStyle:#5b7fff")).toBe(-1);
+  });
+
+  it("ghost: body in the requested color + white eyes with pupils", async () => {
+    const { sprites } = await fresh();
+    const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawCharacterBase(makeRecCtx(rec), "ghost", "#80ed99", 20, { facing: "left" });
+    const seq = rec.calls;
+    expect(seq.indexOf("arc")).toBeGreaterThanOrEqual(0); // dome + scallops + pupils
+    const iBody = seq.indexOf("fillStyle:#80ed99");
+    const iEye = seq.indexOf("fillStyle:#fff");
+    const iPupil = seq.indexOf("fillStyle:#1b2cff");
+    expect(iBody).toBeGreaterThanOrEqual(0);
+    expect(iEye).toBeGreaterThan(iBody);
+    expect(iPupil).toBeGreaterThan(iEye);
+    expect(rec.drawImage.length).toBe(0);
+  });
+
+  it("ghost: fright mode is a solid scared body with no eyes", async () => {
+    const { sprites } = await fresh();
+    const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawCharacterBase(makeRecCtx(rec), "ghost", "#ffb703", 20, { fright: true });
+    expect(rec.calls.indexOf("fillStyle:#5b7fff")).toBeGreaterThanOrEqual(0);
+    expect(rec.calls.indexOf("fillStyle:#ffb703")).toBe(-1);
+    expect(rec.calls.indexOf("fillStyle:#fff")).toBe(-1);
+    expect(rec.calls.indexOf("fillStyle:#1b2cff")).toBe(-1);
+  });
+
+  it("'none' (and unknown ids): draws nothing at all", async () => {
+    const { sprites } = await fresh();
+    for (const base of ["none", "banana", ""]) {
+      const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+      sprites.drawCharacterBase(makeRecCtx(rec), base, "#ffdf00", 20, {});
+      expect(rec.calls.length).toBe(0);
+      expect(rec.drawImage.length).toBe(0);
+    }
   });
 });
 

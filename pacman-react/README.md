@@ -20,18 +20,30 @@ Feature parity with the vanilla game:
 - **Player** - Pac-Man as the Brazilian flag (green, yellow diamond, blue globe)
 - **Ghosts** - 4 turkeys with distinct personalities (Dario, Rita, Zeca, Tuca)
 - **Power pills** - Canva wordmarks; eat one to turn turkeys blue and gobble them
-- **Photo sprites** - drop a photo to "emoji-fy" it (256x256, blur, posterize,
-  median-cut to 16 flat colors) and assign it to Pacman, a turkey, or the pill
-  (photos stay local in `localStorage`, restored on reload). With the
-  **"recorte de silhueta"** toggle on (default), the background is cut out in
-  the browser (`@imgly/background-removal`, ONNX/WASM, model fetched once from
-  the IMG.LY CDN and cached) so the sprite keeps the object's shape, plus a
-  flat sticker ring around the silhouette (`src/game/sticker.ts`). If the
-   cutout can't run (no network, headless, model error) it falls back to the
-   plain square. The cutout/outline code is lazy: first use only. For the
-   player specifically the cutout photo **rides on top of the classic yellow
-   Pac-Man** (animated mouth, rotated to the facing direction; the photo stays
-   upright) so it looks like the face is piloting the Pac-Man.
+- **Photo sprites** - drop a photo (or take one with the camera / pick from the
+  gallery) to "emoji-fy" it (256x256, blur, posterize, median-cut to 16 flat
+  colors) and assign it to Pacman, a turkey, or the pill (photos stay local in
+  `localStorage`, restored on reload). Every photo goes through the 2-step
+  **character design wizard** (`src/components/CharacterWizard.tsx`):
+  1. **foto** - camera capture or gallery pick;
+  2. **personagem** - a live preview plus the choices: the **base character**
+     the photo rides on (classic **PACMAN** mouth wedge, classic **FANTASMA**,
+     or **SÓ RECORTE** = cutout only), a **base color** from a curated arcade
+     palette, and the **"recorte de silhueta"** toggle. All the per-slot options
+     live in `src/game/character.ts` (`CharDesign {base, color, silhueta}`),
+     designed to grow: a future effect (e.g. a "cartoonize") is one more
+     wizard toggle + one pipeline step + one design field.
+  With silhueta on (default), the background is cut out in the browser
+  (`@imgly/background-removal`, ONNX/WASM, model fetched once from the IMG.LY
+  CDN and cached) so the sprite keeps the object's shape, plus a flat sticker
+  ring around the silhouette (`src/game/sticker.ts`). If the cutout can't run
+  (no network, headless, model error) it falls back to the plain square. The
+  cutout/outline code is lazy: first use only. The photo **rides on top of its
+  base character, always upright** (the base rotates/animates underneath) so
+  the face looks like it's piloting the character — e.g. the player's default
+  is a classic yellow Pac-Man, defaulting each turkey to the classic ghost in
+  its own color, and the pill to a Canva-purple Pac-Man. The per-slot design is
+  saved under `peruman.char.<slot>` and restored at boot (`restoreCharDesigns`).
 - **Sound** - Web Audio SFX (M to mute)
 
 ## Run
@@ -72,13 +84,15 @@ pacman-react/
   src/main.tsx            React root
   src/App.tsx             shell: board + touch controls + customize panel
   src/style.css           styles (incl. mobile / touch controls)
-  src/components/
-    GameBoard.tsx         canvas, DPR sizing, rAF loop, keyboard + touch gesture input
-    TouchControls.tsx     pause/start pill (pointer: coarse / ontouchstart only)
-    CustomizePanel.tsx    6 photo-sprite drop zones (+ file-picker fallback, reset)
-  src/game/               engine, ported 1:1 from the vanilla js/
-    config.ts utils.ts audio.ts sprites.ts swipe.ts
-    photoSlots.ts photo.ts silhouette.ts sticker.ts pacman.ts ghost.ts game.ts
+   src/components/
+     GameBoard.tsx         canvas, DPR sizing, rAF loop, keyboard + touch gesture input
+     TouchControls.tsx     pause/start pill (pointer: coarse / ontouchstart only)
+     CustomizePanel.tsx    6 photo-sprite drop zones (+ file-picker fallback, reset)
+     CameraCapture.tsx     camera step of the wizard (live video, flip, capture)
+     CharacterWizard.tsx   2-step wizard: foto -> personagem (base, color, silhueta)
+   src/game/               engine, ported 1:1 from the vanilla js/
+     config.ts utils.ts audio.ts sprites.ts swipe.ts character.ts
+     photoSlots.ts photo.ts silhouette.ts sticker.ts pacman.ts ghost.ts game.ts
   public/img/rafa_emoji.png
   tests/                  vitest suites (ported from pacman/tests/)
 ```

@@ -13,9 +13,11 @@ interface Props {
   slotLabel: string;
   onApply: (dataUrl: string) => void;
   onClose: () => void;
+  // optional: the wizard offers "galeria" (file picker) as a second capture source
+  onGallery?: () => void;
 }
 
-export default function CameraCapture({ slotLabel, onApply, onClose }: Props) {
+export default function CameraCapture({ slotLabel, onApply, onClose, onGallery }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -122,8 +124,13 @@ export default function CameraCapture({ slotLabel, onApply, onClose }: Props) {
       {err && <div className="cam-error">{err}</div>}
       <div className="cam-actions">
         <button className="cam-btn" onClick={onClose}>
-          cancelar
+          {onGallery ? "voltar" : "cancelar"}
         </button>
+        {onGallery && (
+          <button className="cam-btn" onClick={onGallery}>
+            galeria
+          </button>
+        )}
         <button className="cam-btn shoot" onClick={shoot} disabled={!ready || !!err}>
           capturar
         </button>

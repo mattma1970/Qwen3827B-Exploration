@@ -1,11 +1,87 @@
 # PERU MAN — handover / resume notes
 
 > Read this first to pick up where work left off. Last updated: 2026-08-22 (**photo
-> silhueta + sticker outline done on `feature/photo-outline`, awaiting a PR review/merge
-> on explicit user instruction**; swipe merged to main via PR #5 `7c1c065`; camera
-> capture via PR #4 `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user
-> instruction, gated on a full passing test run). Keep this file updated as you go so a
-> future session can resume.
+> silhueta + sticker outline + player rider + character-design wizard all done on
+> `feature/photo-outline` (pushed, PR #6 open), awaiting a PR review/merge on explicit
+> user instruction**; swipe merged to main via PR #5 `7c1c065`; camera capture via PR #4
+> `97fa5b1`; AGENTS.md allows `gh pr merge` ONLY on explicit user instruction, gated on a
+> full passing test run). Keep this file updated as you go so a future session can resume.
+
+## Character-design wizard (pacman-react/) — DONE, on branch `feature/photo-outline` (PR #6), NOT merged
+Goal (user): a bare cutout photo "loses the characteristic shape"; the user should CHOOSE
+how their photo is presented — a **2-step wizard** (2-step chosen as the "extensible"
+option): step 1 **foto** (camera or gallery), step 2 **personagem** (design the
+character). Options per slot: **remove-background/silhueta** (default on), **base
+character** library (classic Pac-Man, the 4 classic ghosts' ghost shape, "só recorte"
+= no base), **base color** (curated arcade-palette swatches, not a free picker). Applies
+to **ALL 6 slots** (player, 4 turkeys, pill). Branch = `feature/photo-outline` (off
+`origin/main` @ `12e8939`; already held silhouette `72272b7` + rider `051d893`); this
+work is one more commit on the same branch/PR #6.
+- **`src/game/character.ts`** (NEW, pure, DOM-free): `CharDesign {base, color, silhueta}`;
+  `CHARS` (pacman/ghost/none — the extensible library: add an entry + a draw branch in
+  `drawCharacterBase` + defaults), `CHAR_COLORS` (10 hexes: classic arcade palette
+  #ffdf00/#ff0000/#ffb8ff/#00ffff/#ffb852 + white/black + canva #6420ff/#00c4cc + #e63946),
+  `OUTLINE_RADIUS=10`, `isCharId`, `defaultDesign(slot)` (player→pacman #ffdf00,
+  pill→pacman #6420ff, each turkey→ghost in its own TURKEYS color, unknown→none; all
+  silhueta:true), `sanitizeDesign(d, slot)` (per-field fallback to the slot defaults;
+  HEX_RE 3–8 digit), `CharDesigns` in-memory map, `designFor/setDesign/clearDesign`
+  (localStorage `peruman.char.<slot>`, swallow-all errors, false when no storage),
+  `restoreCharDesigns()` at boot.
+- **`src/game/sprites.ts`**: NEW `BaseOpts {facing?, mouth?, fright?, flick?}` and
+  `export drawCharacterBase(c, base, color, r, opts)` — "pacman" (rotated mouth wedge,
+  fright→scared blue #5b7fff / flick white with squiggle face), "ghost" (dome + 3-scallop
+  skirt, eyes look toward facing, same fright face), "none"/unknown → nothing.
+  `drawPlayer` photo path = `designFor("player")` base (rotated/mouth-animated) then the
+  photo UPRIGHT at `PLAYER_RIDER_SCALE=0.88` (no rotation). `drawTurkey` photo path =
+  `designFor(name)` base in the local frame (flips with facing, bobs) then upright
+  bobbing photo at 0.88 (replaces the old 1.15r full-square draw; test coords updated).
+  `drawCanvaPill` photo path = `designFor("pill")` base on the glowing disc, mouth
+  wiggling on the pulse clock, photo riding at 0.88 of rb. `frightFaceGhost` helper
+  (squiggle eyes + wave mouth). `drawMiniFlag` unchanged.
+- **`src/components/CharacterWizard.tsx`** (NEW): props `{slot, slotLabel, photo,
+  initial, onApply, onCancel}`; `photo!=null` → straight to step 2. Step 1 wraps
+  `CameraCapture` (new optional `onGallery` prop: "cancelar" becomes "voltar" + a
+  "galeria" button) and a hidden file input. Step 2: 256px live preview canvas (base +
+  upright rider), "recorte de silhueta" checkbox, 3 base thumbs (56px canvas via
+  `drawCharacterBase`), 10 color swatches, "refazer foto / cancelar / aplicar".
+  Pipeline `process(src, silhueta)`: `cutout(src)` (cached in `cutoutRef` so flipping
+  the toggle back on re-cuts nothing; progress toasts) with fallback to the whole photo,
+  then `imageToSprite(s, {outline: silhueta?OUTLINE_RADIUS:0})`; job-guarded
+  (`jobRef`). `apply()` hands the processed source + design to the panel.
+- **`src/components/CustomizePanel.tsx`**: the old `cutoutOn` toggle + `cameraSlot`
+  `CameraCapture` + `applyPhoto` cutout pipeline are GONE (cutout now lives in the
+  wizard). New state `wiz: {slot, photo: SourceImage|null} | null`: per-slot "foto"
+  button → `openWizard(slot, null)` (camera first); file pick/drop (zone or
+  canvas-anywhere → lastUsed) → `openWizard(slot, file)` (straight to design).
+  `handleWizardApply(slot, src, design)`: `setWiz(null)` →
+  `assignPhoto(slot, src, design.silhueta?{outline:OUTLINE_RADIUS}:{})` →
+  `setLastUsed` + `setDesign(slot, design)` + bump + toast. Escape on the panel is
+  suppressed while `wiz` is open. `preloadCutout()` still fires on panel open.
+- **`src/game/photo.ts`**: `clearPhoto` also calls `clearDesign(slot)` (clearing a slot's
+  photo resets its character design to defaults too).
+- **`src/App.tsx`**: boot `useEffect` calls `restoreCharDesigns()` right after
+  `restoreSprites()`.
+- **`src/style.css`**: `.wiz-*` overlay/card/preview/status/opt/base-row/colors/swatches/
+  actions/apply-button (z 70, same palette as the panel).
+- **Tests**: NEW `tests/peru-character.test.ts` (11 cases: library integrity +
+  OUTLINE_RADIUS; defaultDesign per slot incl. case-insensitivity + bogus slot;
+  isCharId; sanitizeDesign null/per-field-fallback/3-digit-hex; setDesign save+readback;
+  sanitize-on-save + clearDesign; restoreCharDesigns valid/corrupt/invalid/bogus;
+  no-storage in-memory). IN `peru-sprite.test.ts`: NEW 5-case `drawCharacterBase` suite
+  (pacman wedge order + color + no eyes; pacman fright blue/white-flick; ghost body+
+  eyes order; ghost fright no eyes; none/unknown draws nothing) + the turkey photo test
+  updated to the 0.88r rider coords + default-ghost-base-color assertion (Zeca color from
+  TURKEYS). **SMOKE FLAKE FIXED (latent merge-gate risk)**: `peru-smoke.test.ts`
+  randomized on the unseeded `Math.random` (failed once this session with maxScore=30,
+  needs >30); now stubs it with a mulberry32(1) PRNG for the whole run (ghost AI included)
+  → deterministic; measured seeds 1–8: maxScore 40–70, deaths 11–12 (seed 1: 50/12).
+**Verify: 85 tests / 10 files green; `npm run build` clean (tsc + vite) — main JS
+193 kB (64 kB gzip) + 8 kB css, ONNX chunks + ~24 MB wasm lazy.**
+Outstanding: (1) real phone/browser verification of the wizard flow (camera step, design
+step preview, cutout progress on a real device; CDN ~40 MB model + wasm on first use);
+(2) per AGENTS.md **do NOT merge PR #6** without an explicit user instruction + a fresh
+full-green `npm test` (and the vanilla `node pacman/tests/peru-*.js` gate if touching
+vanilla — this feature is React-only, vanilla untouched).
 
 ## Photo silhouette cutout + sticker outline (pacman-react/) — DONE, on branch `feature/photo-outline`, NOT merged
 Goal (user): photo sprites "lose detail" at the ~28 px board size — the object's shape

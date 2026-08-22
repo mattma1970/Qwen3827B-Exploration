@@ -7,6 +7,7 @@ import CustomizePanel from "./components/CustomizePanel";
 import type { Game } from "./game/game";
 import { AudioFX } from "./game/audio";
 import { restoreSprites } from "./game/photo";
+import { restoreCharDesigns } from "./game/character";
 
 // Mobile UI switch: viewport-based (kept in sync with the @media 720px rules
 // in style.css). Drives the hamburger menu layout on phones.
@@ -33,6 +34,7 @@ export default function App() {
   // on mount).
   useEffect(() => {
     restoreSprites();
+    restoreCharDesigns();
   }, []);
 
   // late-bound handlers: the customize panel registers its drop-anywhere and

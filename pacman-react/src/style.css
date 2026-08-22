@@ -309,6 +309,134 @@ canvas { display: block; }
 .cam-btn.shoot { color: #ffdf00; border-color: rgba(255, 223, 0, 0.6); }
 .cam-btn.shoot:disabled { color: #4a4f8c; border-color: #33336b; cursor: default; }
 
+/* ---- character-design wizard (step 2, the design card) ---- */
+.wiz-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(10, 10, 30, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.wiz-card {
+  width: min(360px, 94vw);
+  max-height: 94vh;
+  overflow-y: auto;
+  background: #171735;
+  border: 2px solid #3d3d85;
+  border-radius: 16px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.65);
+  padding: 14px;
+  text-align: center;
+}
+.wiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.wiz-head h2 {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #8f96d9;
+  font-weight: 700;
+}
+.wiz-prev {
+  background: #12122b;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 256px;
+}
+.wiz-status {
+  font-size: 11px;
+  color: #ffb852;
+  min-height: 16px;
+  margin-top: 6px;
+}
+.wiz-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #9aa0d9;
+  background: #191942;
+  border: 1px solid #3d3d85;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+.wiz-opt input { accent-color: #ffdf00; cursor: pointer; }
+.wiz-opt:hover { border-color: #ffdf00; }
+.wiz-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.wiz-base {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: #12122b;
+  border: 2px solid #3d3d85;
+  border-radius: 10px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+.wiz-base:hover { border-color: #6d74a8; }
+.wiz-base.active {
+  border-color: #ffdf00;
+  background: rgba(255, 223, 0, 0.06);
+}
+.wiz-base span {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #9aa0d9;
+}
+.wiz-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.wiz-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #3d3d85;
+  cursor: pointer;
+  padding: 0;
+}
+.wiz-swatch:hover { border-color: #fff; }
+.wiz-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px #ffdf00;
+}
+.wiz-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.wiz-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid #4a4f8c;
+  color: #cdd3ff;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.wiz-btn:hover { background: #23235a; }
+.wiz-btn.apply { color: #ffdf00; border-color: rgba(255, 223, 0, 0.6); }
+.wiz-btn.apply:disabled { color: #4a4f8c; border-color: #33336b; cursor: default; }
+
 /* ---- mobile: fit the board + on-screen controls ---- */
 
 /* top-left hamburger (phones): opens the personalize panel. Replaces the

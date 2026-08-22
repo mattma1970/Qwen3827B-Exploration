@@ -2,7 +2,9 @@
 // React port of pacman/js/customize.js: 6 drop zones (Pacman, 4 named turkeys,
 // pill), live 64px previews, drag-drop + file-picker (mobile) per zone,
 // drop-anywhere-on-canvas to the last-used slot, clear/reset, live usage meter
-// and toasts. Opened with C or the on-screen button; auto-pauses the game.
+// and toasts. Every photo goes through the 2-step CharacterWizard (camera /
+// gallery -> character design: base, color, silhueta). Opened with C or the
+// on-screen button; auto-pauses the game.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Game } from "../game/game";
@@ -10,9 +12,10 @@ import { TURKEYS } from "../game/config";
 import { drawCanvaPill, drawPlayer, drawTurkey } from "../game/sprites";
 import { SpriteData, allSlots, spriteUsage, SPRITE_QUOTA } from "../game/photoSlots";
 import { assignPhoto, clearPhoto, SourceImage } from "../game/photo";
-import { cutout, preloadCutout } from "../game/silhouette";
+import { preloadCutout } from "../game/silhouette";
+import { CharDesign, designFor, setDesign, OUTLINE_RADIUS } from "../game/character";
 import { AudioFX } from "../game/audio";
-import CameraCapture from "./CameraCapture";
+import CharacterWizard from "./CharacterWizard";
 
 function slotList(): string[] {
   return allSlots();
@@ -151,12 +154,9 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
   const [toast, setToast] = useState<{ msg: string; show: boolean }>({ msg: "", show: false });
   const [version, setVersion] = useState(0);
   const [lastUsed, setLastUsed] = useState("player");
-  // "recorte de silhueta" mode: cut the background out (in-browser model) so
-  // the sprite keeps the object's shape + a flat sticker ring, instead of a
-  // flat square. Default on; the model (~40 MB) downloads once, then caches.
-  const [cutoutOn, setCutoutOn] = useState(true);
-  // slot the camera overlay is capturing for (null = camera closed)
-  const [cameraSlot, setCameraSlot] = useState<string | null>(null);
+  // the 2-step character-design wizard: { slot, photo } — photo null means
+  // step 1 (take a photo) is first; a File means straight to step 2 (design)
+  const [wiz, setWiz] = useState<{ slot: string; photo: SourceImage | null } | null>(null);
   const toastTimer = useRef<number | null>(null);
   const pausedByPanel = useRef(false);
 
@@ -177,23 +177,23 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
           pausedByPanel.current = true;
         }
         // warm the cutout model while the user is picking a photo
-        if (cutoutOn) preloadCutout();
+        preloadCutout();
       } else if (pausedByPanel.current && game) {
         game.togglePause();
         pausedByPanel.current = false;
       }
     },
-    [game, setOpen, cutoutOn]
+    [game, setOpen]
   );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // while the camera overlay is open, its own Escape handler closes it
-      if (e.code === "Escape" && open && !cameraSlot) setPanel(false);
+      // while the wizard is open, its own Escape handler closes it
+      if (e.code === "Escape" && open && !wiz) setPanel(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, setPanel, cameraSlot]);
+  }, [open, setPanel, wiz]);
 
   // register the C-toggle (freshest closure on every render)
   const openRef = useRef(open);
@@ -204,13 +204,19 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
     registerToggle(() => setPanelRef.current(!openRef.current));
   });
 
-  // Thicker than the default so the ring survives the 256 -> ~28px shrink.
-  const OUTLINE_RADIUS = 10;
+  // Opens the character-design wizard: handed a photo (a picked/dropped file)
+  // it goes straight to the design step; without one it starts on the camera
+  // step (take a photo or pick from the gallery).
+  const openWizard = (slot: string, photo: SourceImage | null) => setWiz({ slot, photo });
 
-  const doAssign = (slot: string, src: SourceImage, withOutline: boolean) => {
-    assignPhoto(slot, src, withOutline ? { outline: OUTLINE_RADIUS } : {}).then(
+  // The wizard finished: persist the photo sprite (sticker ring when silhueta)
+  // plus the character design (base + color + silhueta) for the slot.
+  const handleWizardApply = (slot: string, src: SourceImage, design: CharDesign) => {
+    setWiz(null);
+    assignPhoto(slot, src, design.silhueta ? { outline: OUTLINE_RADIUS } : {}).then(
       (name) => {
         setLastUsed(name);
+        setDesign(name, design);
         bump();
         showToast("foto aplicada em " + slotLabel(name));
       },
@@ -220,54 +226,27 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
     );
   };
 
-  // Pipeline with the silhueta toggle: cutout (fallback to the whole photo if
-  // the model/network fails) -> emoji-fy, adding a sticker ring when cut.
-  const applyPhoto = (slot: string, source: SourceImage) => {
-    if (!cutoutOn) {
-      doAssign(slot, source, false);
-      return;
-    }
-    showToast("recortando silhueta…");
-    const onProgress = (_key: string, cur: number, total: number) => {
-      if (total > 0) {
-        const pct = Math.min(100, Math.round((cur / total) * 100));
-        showToast("recortando silhueta… " + pct + "%");
-      }
-    };
-    cutout(source as string | Blob | File, { progress: onProgress }).then((b) => {
-      if (b) {
-        doAssign(slot, b, true);
-      } else {
-        showToast("sem silhueta — usando a foto inteira");
-        doAssign(slot, source, false);
-      }
-    });
-  };
-
   const handleAssign = (slot: string, f: File) => {
     if (!isImageFile(f)) {
       showToast("só imagens, por favor");
       return;
     }
-    applyPhoto(slot, f);
+    openWizard(slot, f);
   };
 
   const handleCanvasDrop = (f: File | null) => {
     if (!f) return;
-    handleAssign(lastUsed, f);
+    if (!isImageFile(f)) {
+      showToast("só imagens, por favor");
+      return;
+    }
+    openWizard(lastUsed, f);
   };
   // (re)register the canvas-drop handler after every render so it always sees
-  // the freshest lastUsedSlot closure
+  // the freshest lastUsed closure
   useEffect(() => {
     registerDropHandler(handleCanvasDrop);
   });
-
-  // captured camera frame arrives as a PNG data URL: close the overlay (which
-  // stops the camera stream) and feed it through the same pipeline as a file
-  const handleCapture = (slot: string, dataUrl: string) => {
-    setCameraSlot(null);
-    applyPhoto(slot, dataUrl);
-  };
 
   const handleClear = (slot: string) => {
     clearPhoto(slot);
@@ -306,10 +285,6 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
             </button>
           </div>
           <div className="cp-sub">solte uma foto em cada slot — ou clique para escolher</div>
-          <label className="cp-opt" title="recorta o fundo da foto no seu aparelho e desenha um contorno de sticker ao redor da silhueta">
-            <input type="checkbox" checked={cutoutOn} onChange={(e) => setCutoutOn(e.target.checked)} />
-            <span>recorte de silhueta + contorno de sticker</span>
-          </label>
           <div className="cp-grid">
             {slotList().map((slot) => (
               <SlotZone
@@ -318,7 +293,7 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
                 version={version}
                 onAssign={handleAssign}
                 onClear={handleClear}
-                onCamera={(s) => setCameraSlot(s)}
+                onCamera={(s) => openWizard(s, null)}
               />
             ))}
           </div>
@@ -333,11 +308,14 @@ export default function CustomizePanel({ open, setOpen, game, mobile = false, re
         </div>
       )}
 
-      {cameraSlot && (
-        <CameraCapture
-          slotLabel={slotLabel(cameraSlot)}
-          onApply={(url) => handleCapture(cameraSlot, url)}
-          onClose={() => setCameraSlot(null)}
+      {wiz && (
+        <CharacterWizard
+          slot={wiz.slot}
+          slotLabel={slotLabel(wiz.slot)}
+          photo={wiz.photo}
+          initial={designFor(wiz.slot)}
+          onApply={(src, d) => handleWizardApply(wiz.slot, src, d)}
+          onCancel={() => setWiz(null)}
         />
       )}
 

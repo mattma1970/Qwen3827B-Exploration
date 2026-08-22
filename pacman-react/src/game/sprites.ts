@@ -170,7 +170,7 @@ export function drawPlayer(c: CanvasRenderingContext2D, x: number, y: number, r:
     drawCharacterBase(c, d.base, d.color, r, bo);
     if (characterBasePath(c, d.base, r, bo)) c.clip();
     const s = r * PLAYER_RIDER_SCALE;
-    c.drawImage(img, -s, -s, s * 2, s * 2);
+    c.drawImage(img, d.dx * r - s, d.dy * r - s, s * 2, s * 2);
     c.restore();
     return;
   }
@@ -242,7 +242,7 @@ export function drawTurkey(c: CanvasRenderingContext2D, x: number, y: number, r:
     drawCharacterBase(c, d.base, d.color, r, bo);
     if (characterBasePath(c, d.base, r, bo)) c.clip();
     const s = r * PLAYER_RIDER_SCALE;
-    c.drawImage(photo, -s, -s, s * 2, s * 2);
+    c.drawImage(photo, d.dx * r - s, d.dy * r - s, s * 2, s * 2);
     c.restore();
     return;
   }
@@ -384,7 +384,7 @@ export function drawCanvaPill(c: CanvasRenderingContext2D, x: number, y: number,
     drawCharacterBase(c, d.base, d.color, rb, bo);
     if (characterBasePath(c, d.base, rb, bo)) c.clip();
     const rs = rb * PLAYER_RIDER_SCALE;
-    c.drawImage(Sprites.pill, -rs, -rs, rs * 2, rs * 2);
+    c.drawImage(Sprites.pill, d.dx * rb - rs, d.dy * rb - rs, rs * 2, rs * 2);
     c.restore();
     return;
   }

@@ -11,7 +11,16 @@ export interface CharDesign {
   base: string; // "pacman" | "ghost" | "none"
   color: string; // hex tint applied to the base
   silhueta: boolean; // cut the photo's background before emoji-fying it
+  // photo position: center offset from the base center, in base-radius units
+  // ((0,0) = centered). Dragged in the wizard so the face can be placed
+  // where it looks right inside the character.
+  dx: number;
+  dy: number;
 }
+
+// How far the photo may be dragged from the base center (in base units). The
+// photo (0.88r) still overlaps the clipped base within this range.
+export const CHAR_OFFSET_MAX = 0.5;
 
 // The standard library of base characters (extensible: add an entry here, a
 // draw branch in sprites.ts drawCharacterBase, and adjust defaults if needed).
@@ -49,22 +58,30 @@ export function isCharId(id: unknown): id is string {
 export function defaultDesign(slot: string): CharDesign {
   const low = String(slot).toLowerCase();
   for (const t of TURKEYS) {
-    if (t.name.toLowerCase() === low) return { base: "ghost", color: t.color, silhueta: true };
+    if (t.name.toLowerCase() === low) return { base: "ghost", color: t.color, silhueta: true, dx: 0, dy: 0 };
   }
-  if (low === "player") return { base: "pacman", color: "#ffdf00", silhueta: true };
-  if (low === "pill") return { base: "pacman", color: "#6420ff", silhueta: true };
-  return { base: "none", color: "#ffffff", silhueta: true };
+  if (low === "player") return { base: "pacman", color: "#ffdf00", silhueta: true, dx: 0, dy: 0 };
+  if (low === "pill") return { base: "pacman", color: "#6420ff", silhueta: true, dx: 0, dy: 0 };
+  return { base: "none", color: "#ffffff", silhueta: true, dx: 0, dy: 0 };
 }
 
 const HEX_RE = /^#[0-9a-fA-F]{3,8}$/;
 
+function offset(v: unknown): number {
+  const n = typeof v === "number" && isFinite(v) ? v : 0;
+  return Math.max(-CHAR_OFFSET_MAX, Math.min(CHAR_OFFSET_MAX, n));
+}
+
 // Defensive normalization (used on save AND on restore of stale/corrupt JSON).
+// Old records without dx/dy load centered.
 export function sanitizeDesign(d: Partial<CharDesign> | null | undefined, slot: string): CharDesign {
   const fall = defaultDesign(slot);
   return {
     base: d && isCharId(d.base) ? d.base : fall.base,
     color: d && typeof d.color === "string" && HEX_RE.test(d.color) ? d.color : fall.color,
     silhueta: d && typeof d.silhueta === "boolean" ? d.silhueta : fall.silhueta,
+    dx: offset(d?.dx),
+    dy: offset(d?.dy),
   };
 }
 

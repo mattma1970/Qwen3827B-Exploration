@@ -19,14 +19,18 @@ to **ALL 6 slots** (player, 4 turkeys, pill). Branch = `feature/photo-outline` (
 work is one more commit on the same branch/PR #6.
 - **`src/game/character.ts`** (NEW, pure, DOM-free): `CharDesign {base, color, silhueta}`;
   `CHARS` (pacman/ghost/none — the extensible library: add an entry + a draw branch in
-  `drawCharacterBase` + defaults), `CHAR_COLORS` (10 hexes: classic arcade palette
+  `drawCharacterBase` + defaults),   `CHAR_COLORS` (10 hexes: classic arcade palette
   #ffdf00/#ff0000/#ffb8ff/#00ffff/#ffb852 + white/black + canva #6420ff/#00c4cc + #e63946),
-  `OUTLINE_RADIUS=10`, `isCharId`, `defaultDesign(slot)` (player→pacman #ffdf00,
-  pill→pacman #6420ff, each turkey→ghost in its own TURKEYS color, unknown→none; all
-  silhueta:true), `sanitizeDesign(d, slot)` (per-field fallback to the slot defaults;
-  HEX_RE 3–8 digit), `CharDesigns` in-memory map, `designFor/setDesign/clearDesign`
-  (localStorage `peruman.char.<slot>`, swallow-all errors, false when no storage),
-  `restoreCharDesigns()` at boot.
+  `OUTLINE_RADIUS=10`, `CHAR_OFFSET_MAX=0.5`, `isCharId`, `defaultDesign(slot)`
+  (player→pacman #ffdf00, pill→pacman #6420ff, each turkey→ghost in its own TURKEYS
+  color, unknown→none; all silhueta:true, dx/dy=0), `sanitizeDesign(d, slot)`
+  (per-field fallback to the slot defaults; HEX_RE 3–8 digit; dx/dy non-finite/
+  out-of-range → 0 / clamped to ±0.5; old records without dx/dy load centered),
+  `CharDesigns` in-memory map, `designFor/setDesign/clearDesign` (localStorage
+  `peruman.char.<slot>`, swallow-all errors, false when no storage),
+  `restoreCharDesigns()` at boot. `dx/dy` = photo center offset from the base
+  center, in base-radius units (added later for the press-and-drag reposition;
+  applied in all three rider draw sites + wizard preview).
 - **`src/game/sprites.ts`**: NEW `BaseOpts {facing?, mouth?, fright?, flick?}`,
   `export characterBasePath(c, base, r, opts): boolean` (the base's outline as a path —
   pacman wedge rotated to facing; path coords freeze at build time, so the internal
@@ -44,13 +48,24 @@ work is one more commit on the same branch/PR #6.
   are now local-frame, ±s around the translated origin). `drawCanvaPill` photo path =
   `designFor("pill")` base on the glowing disc (mouth wiggling on the pulse clock),
   clip + photo at 0.88 of rb. Wizard 256px preview clips too (same look as the board).
-  `frightFaceGhost` helper (squiggle eyes + wave mouth). `drawMiniFlag` unchanged.
+  All three rider sites draw the photo at `(d.dx*r - s, d.dy*r - s)` (pill uses `rb`) —
+  the user's chosen position, scale-free (radius units). `frightFaceGhost` helper
+  (squiggle eyes + wave mouth). `drawMiniFlag` unchanged (plain circular photo, no
+  base — the tiny 16px life icon would just get muddy).
 - **`src/components/CharacterWizard.tsx`** (NEW): props `{slot, slotLabel, photo,
   initial, onApply, onCancel}`; `photo!=null` → straight to step 2. Step 1 wraps
   `CameraCapture` (new optional `onGallery` prop: "cancelar" becomes "voltar" + a
   "galeria" button) and a hidden file input. Step 2: 256px live preview canvas (base +
-  upright rider), "recorte de silhueta" checkbox, 3 base thumbs (56px canvas via
-  `drawCharacterBase`), 10 color swatches, "refazer foto / cancelar / aplicar".
+  upright, clipped, offset rider), "recorte de silhueta" checkbox, 3 base thumbs (56px
+  canvas via `drawCharacterBase`), 10 color swatches, "refazer foto / cancelar /
+  aplicar". **Press-and-drag on the preview repositions the photo** (user ask):
+  pointer events with `setPointerCapture`; `dragRef` holds the gesture start (client
+  xy + offset at that moment) so a move = start + full delta (no drift); client→canvas
+  px→base-unit scale `PREV_SIZE/rect/PREV_R` so the feel is identical at any CSS size;
+  clamped to ±`CHAR_OFFSET_MAX` (0.5 r); `touch-action:none` + cursor grab/grabbing so
+  phones don't scroll the card mid-drag; the hint line under the preview swaps to a
+  "recentrar foto" button when dx/dy ≠ 0. Offset applies live to the preview and
+  persists with the design.
   Pipeline `process(src, silhueta)`: `cutout(src)` (cached in `cutoutRef` so flipping
   the toggle back on re-cuts nothing; progress toasts) with fallback to the whole photo,
   then `imageToSprite(s, {outline: silhueta?OUTLINE_RADIUS:0})`; job-guarded
@@ -80,14 +95,18 @@ work is one more commit on the same branch/PR #6.
   characterBasePath path-only for pacman/ghost + false for none) + the player rider,
   turkey photo and pill tests assert the clip ordering (fill → clip → drawImage) +
   the turkey test the 0.88r rider local-frame coords + default-ghost-base-color
-  assertion (Zeca color from TURKEYS). **SMOKE FLAKE FIXED (latent merge-gate risk)**:
+  assertion (Zeca color from TURKEYS) + a new rider-offset test (setDesign dx/dy
+  shifts the drawImage frame by dx*r/dy*r for player AND turkey). `peru-character`
+  gained the offset cases: defaults centered; per-field valid offsets survive;
+  clamp ±0.5 / non-finite→0; setDesign sanitizes on save; old records without
+  dx/dy restore centered. **SMOKE FLAKE FIXED (latent merge-gate risk)**:
   `peru-smoke.test.ts` randomized on the unseeded `Math.random` (failed once this
   session with maxScore=30, needs >30); now stubs it with a mulberry32(1) PRNG for the
   whole run (ghost AI included) → deterministic; measured seeds 1–8: maxScore 40–70,
   deaths 11–12 (seed 1: 50/12).
-**Verify (after the photo-clip change): 86 tests / 10 files green; `npm run build`
-clean (tsc + vite) — main JS 194 kB (64 kB gzip) + 8 kB css, ONNX chunks + ~24 MB wasm
-lazy.**
+**Verify (after the photo-position change): 88 tests / 10 files green; `npm run build`
+clean (tsc + vite) — main JS 195 kB (65 kB gzip) + 8.5 kB css, ONNX chunks + ~24 MB
+wasm lazy.**
 Outstanding: (1) real phone/browser verification of the wizard flow (camera step, design
 step preview, cutout progress on a real device; CDN ~40 MB model + wasm on first use);
 (2) per AGENTS.md **do NOT merge PR #6** without an explicit user instruction + a fresh

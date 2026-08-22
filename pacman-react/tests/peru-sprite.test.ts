@@ -321,6 +321,25 @@ describe("player rider (photo on the classic yellow)", () => {
     const { sprites } = await fresh();
     expect(sprites.PAC_YELLOW).toBe("#ffdf00");
   });
+
+  it("the photo position offset (CharDesign dx/dy, in radius units) shifts the rider, and applies to turkeys too", async () => {
+    const { sprites } = await fresh();
+    const char = await import("../src/game/character");
+    char.setDesign("player", { base: "pacman", color: "#ffdf00", silhueta: true, dx: 0.5, dy: -0.25 });
+    const rec = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawPlayer(makeRecCtx(rec), 10, 10, 20, 0.5, "right");
+    // centered frame ±0.88r, shifted by (dx,dy) * r
+    expect(near(rec.drawImage[0][1] as number, -(20 * 0.88) + 0.5 * 20)).toBe(true);
+    expect(near(rec.drawImage[0][2] as number, -(20 * 0.88) - 0.25 * 20)).toBe(true);
+
+    char.setDesign("Zeca", { base: "ghost", color: "#ff7ab6", silhueta: true, dx: -0.3, dy: 0.4 });
+    const fakePhoto = loadedFake(64, 64, () => [230, 57, 70, 255]);
+    sprites.Sprites.ghosts.Zeca = fakePhoto;
+    const t = { drawImage: [] as unknown[][], calls: [] as string[] };
+    sprites.drawTurkey(makeRecCtx(t), 10, 10, 12, "#ff7ab6", { name: "Zeca" });
+    expect(near(t.drawImage[0][1] as number, -(12 * 0.88) - 0.3 * 12)).toBe(true);
+    expect(near(t.drawImage[0][2] as number, -(12 * 0.88) + 0.4 * 12)).toBe(true);
+  });
 });
 
 describe("imageToSprite pipeline", () => {

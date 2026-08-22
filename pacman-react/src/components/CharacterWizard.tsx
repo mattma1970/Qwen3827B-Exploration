@@ -5,7 +5,9 @@
 //                    color, and a live 256px preview. The cutout (lazy ONNX
 //                    model) + emoji-ify run HERE, with progress; on apply the
 //                    processed source + design are handed to the panel, which
-//                    does assignPhoto + persists the design.
+//                    does assignPhoto + persists the design. The photo can be
+//                    pressed-and-dragged on the preview to shift its position
+//                    on the character (persisted as CharDesign.dx/dy).
 // Extensible: a future effect (e.g. "cartoonize") = one more toggle + its
 // pipeline step here + one field in game/character.ts.
 
@@ -13,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PLAYER_RIDER_SCALE, characterBasePath, drawCharacterBase } from "../game/sprites";
 import { SourceImage, imageToSprite } from "../game/photo";
 import { cutout } from "../game/silhouette";
-import { CHARS, CHAR_COLORS, CharDesign, OUTLINE_RADIUS } from "../game/character";
+import { CHARS, CHAR_COLORS, CHAR_OFFSET_MAX, CharDesign, OUTLINE_RADIUS } from "../game/character";
 import CameraCapture from "./CameraCapture";
 
 const PREV_SIZE = 256;
@@ -69,6 +71,9 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
   const jobRef = useRef(0);
   const prevRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // press-and-drag photo repositioning: the gesture start (client xy + the
+  // offset at that moment) so a move is always start + full delta (no drift)
+  const dragRef = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
 
   // cutout (if wanted) -> emoji-ify with the sticker ring (if cut). Re-runs
   // only when the photo or the silhueta choice changes; base/color are render-only.
@@ -141,11 +146,34 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
       const s = PREV_R * PLAYER_RIDER_SCALE;
       c.save();
       if (characterBasePath(c, d.base, PREV_R, bo)) c.clip();
-      c.drawImage(img, -s, -s, s * 2, s * 2);
+      c.drawImage(img, d.dx * PREV_R - s, d.dy * PREV_R - s, s * 2, s * 2);
       c.restore();
     }
     c.restore();
   }, [step, d, img]);
+
+  // Press-and-drag on the preview shifts the photo (in base-radius units).
+  // The scale maps client px -> canvas px -> base units so the feel is the
+  // same no matter how the 256px canvas is CSS-scaled.
+  const onDragStart = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, dx: d.dx, dy: d.dy };
+  };
+  const onDragMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    const cv = prevRef.current;
+    if (!drag || !cv) return;
+    const rect = cv.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const kx = PREV_SIZE / rect.width / PREV_R;
+    const ky = PREV_SIZE / rect.height / PREV_R;
+    const ndx = Math.max(-CHAR_OFFSET_MAX, Math.min(CHAR_OFFSET_MAX, drag.dx + (e.clientX - drag.x) * kx));
+    const ndy = Math.max(-CHAR_OFFSET_MAX, Math.min(CHAR_OFFSET_MAX, drag.dy + (e.clientY - drag.y) * ky));
+    setD((prev) => (prev.dx === ndx && prev.dy === ndy ? prev : { ...prev, dx: ndx, dy: ndy }));
+  };
+  const onDragEnd = () => {
+    dragRef.current = null;
+  };
 
   // Escape on the design step closes the wizard (the camera step has its own)
   useEffect(() => {
@@ -197,7 +225,25 @@ export default function CharacterWizard({ slot, slotLabel, photo, initial, onApp
             ×
           </button>
         </div>
-        <canvas ref={prevRef} className="wiz-prev" width={PREV_SIZE} height={PREV_SIZE} />
+        <canvas
+          ref={prevRef}
+          className="wiz-prev"
+          width={PREV_SIZE}
+          height={PREV_SIZE}
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+        />
+        <div className="wiz-hint">
+          {d.dx !== 0 || d.dy !== 0 ? (
+            <button type="button" className="wiz-recenter" onClick={() => setD({ ...d, dx: 0, dy: 0 })}>
+              recentrar foto
+            </button>
+          ) : (
+            "arraste a foto para posicionar no personagem"
+          )}
+        </div>
         {busy && <div className="wiz-status">{busy}</div>}
         <label className="wiz-opt" title="recorta o fundo da foto no aparelho e desenha um contorno de sticker">
           <input type="checkbox" checked={d.silhueta} onChange={(e) => setD({ ...d, silhueta: e.target.checked })} />

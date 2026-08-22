@@ -348,7 +348,30 @@ canvas { display: block; }
   border-radius: 12px;
   width: 100%;
   max-width: 256px;
+  cursor: grab;
+  /* drag = reposition the photo; the page/card must not scroll under it */
+  touch-action: none;
 }
+.wiz-prev:active { cursor: grabbing; }
+.wiz-hint {
+  font-size: 10px;
+  color: #6d74a8;
+  min-height: 18px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.wiz-recenter {
+  background: none;
+  border: 1px solid #4a4f8c;
+  color: #cdd3ff;
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.wiz-recenter:hover { background: #23235a; }
 .wiz-status {
   font-size: 11px;
   color: #ffb852;

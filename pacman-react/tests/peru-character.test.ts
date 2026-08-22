@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHAR_COLORS,
+  CHAR_OFFSET_MAX,
   CHARS,
   OUTLINE_RADIUS,
   clearDesign,
@@ -49,13 +50,13 @@ describe("character library", () => {
 });
 
 describe("defaultDesign (first-run looks)", () => {
-  it("player -> yellow pacman, pill -> canva-purple pacman, each turkey -> ghost in its own color, all with silhueta", () => {
-    expect(defaultDesign("player")).toEqual({ base: "pacman", color: "#ffdf00", silhueta: true });
-    expect(defaultDesign("pill")).toEqual({ base: "pacman", color: "#6420ff", silhueta: true });
+  it("player -> yellow pacman, pill -> canva-purple pacman, each turkey -> ghost in its own color, all with silhueta, photo centered", () => {
+    expect(defaultDesign("player")).toEqual({ base: "pacman", color: "#ffdf00", silhueta: true, dx: 0, dy: 0 });
+    expect(defaultDesign("pill")).toEqual({ base: "pacman", color: "#6420ff", silhueta: true, dx: 0, dy: 0 });
     for (const t of TURKEYS) {
-      expect(defaultDesign(t.name)).toEqual({ base: "ghost", color: t.color, silhueta: true });
+      expect(defaultDesign(t.name)).toEqual({ base: "ghost", color: t.color, silhueta: true, dx: 0, dy: 0 });
     }
-    expect(defaultDesign("bogus-slot")).toEqual({ base: "none", color: "#ffffff", silhueta: true });
+    expect(defaultDesign("bogus-slot")).toEqual({ base: "none", color: "#ffffff", silhueta: true, dx: 0, dy: 0 });
   });
 
   it("slot names are case-insensitive", () => {
@@ -84,16 +85,38 @@ describe("isCharId + sanitizeDesign", () => {
   });
 
   it("per-field fallback: bad base/color fall back to that slot's defaults, good fields survive", () => {
-    expect(sanitizeDesign({ base: "banana", color: "#123456", silhueta: false }, "player")).toEqual({
+    expect(sanitizeDesign({ base: "banana", color: "#123456", silhueta: false, dx: 0.25, dy: -0.1 }, "player")).toEqual({
       base: "pacman",
       color: "#123456",
       silhueta: false,
+      dx: 0.25,
+      dy: -0.1,
     });
     expect(sanitizeDesign({ base: "ghost", color: "zzz" }, "Rita")).toEqual({
       base: "ghost",
       color: defaultDesign("Rita").color,
       silhueta: defaultDesign("Rita").silhueta,
+      dx: 0,
+      dy: 0,
     });
+  });
+
+  it("sanitizeDesign clamps the photo offset to ±CHAR_OFFSET_MAX; bad values center", () => {
+    expect(sanitizeDesign({ base: "pacman", color: "#fff", silhueta: true, dx: 5, dy: -5 }, "player")).toEqual({
+      base: "pacman",
+      color: "#fff",
+      silhueta: true,
+      dx: 0.5,
+      dy: -0.5,
+    });
+    expect(sanitizeDesign({ base: "pacman", color: "#fff", silhueta: true, dx: "x", dy: NaN }, "player")).toEqual({
+      base: "pacman",
+      color: "#fff",
+      silhueta: true,
+      dx: 0,
+      dy: 0,
+    });
+    expect(CHAR_OFFSET_MAX).toBe(0.5);
   });
 
   it("3-digit hex is accepted (valid CSS), malformed strings are not", () => {
@@ -106,19 +129,20 @@ describe("persistence (localStorage)", () => {
   it("setDesign saves sanitized JSON under peruman.char.<slot>; designFor reads it back", () => {
     const storage: StorageStub = makeStorage();
     vi.stubGlobal("localStorage", storage);
-    setDesign("player", { base: "ghost", color: "#00ffff", silhueta: false });
-    expect(designFor("player")).toEqual({ base: "ghost", color: "#00ffff", silhueta: false });
+    setDesign("player", { base: "ghost", color: "#00ffff", silhueta: false, dx: 0.3, dy: -0.2 });
+    expect(designFor("player")).toEqual({ base: "ghost", color: "#00ffff", silhueta: false, dx: 0.3, dy: -0.2 });
     const raw = storage.backing["peruman.char.player"];
     expect(raw).toBeTruthy();
-    expect(JSON.parse(raw)).toEqual({ base: "ghost", color: "#00ffff", silhueta: false });
+    expect(JSON.parse(raw)).toEqual({ base: "ghost", color: "#00ffff", silhueta: false, dx: 0.3, dy: -0.2 });
   });
 
-  it("setDesign sanitizes on save; clearDesign wipes memory and storage", () => {
+  it("setDesign sanitizes on save (incl. offset clamping); clearDesign wipes memory and storage", () => {
     const storage: StorageStub = makeStorage();
     vi.stubGlobal("localStorage", storage);
-    setDesign("pill", { base: "junk" as never, color: "#00c4cc", silhueta: true });
+    setDesign("pill", { base: "junk" as never, color: "#00c4cc", silhueta: true, dx: 9, dy: 0 });
     expect(JSON.parse(storage.backing["peruman.char.pill"]).base).toBe("pacman");
-    expect(designFor("pill")).toEqual({ base: "pacman", color: "#00c4cc", silhueta: true });
+    expect(JSON.parse(storage.backing["peruman.char.pill"]).dx).toBe(0.5);
+    expect(designFor("pill")).toEqual({ base: "pacman", color: "#00c4cc", silhueta: true, dx: 0.5, dy: 0 });
     clearDesign("pill");
     expect(designFor("pill")).toEqual(defaultDesign("pill"));
     expect(storage.backing["peruman.char.pill"]).toBeUndefined();
@@ -133,16 +157,17 @@ describe("persistence (localStorage)", () => {
     storage.backing["peruman.char.Zeca"] = JSON.stringify({ base: "junk", color: "nope", silhueta: 1 });
     vi.stubGlobal("localStorage", storage);
     restoreCharDesigns();
-    expect(designFor("player")).toEqual({ base: "ghost", color: "#00ffff", silhueta: false });
-    expect(designFor("Dario")).toEqual({ base: "pacman", color: "#ffdf00", silhueta: false });
+    // old records without dx/dy (pre-positioning) load centered
+    expect(designFor("player")).toEqual({ base: "ghost", color: "#00ffff", silhueta: false, dx: 0, dy: 0 });
+    expect(designFor("Dario")).toEqual({ base: "pacman", color: "#ffdf00", silhueta: false, dx: 0, dy: 0 });
     expect(designFor("Rita")).toEqual(defaultDesign("Rita")); // unparseable -> defaults
     expect(designFor("Zeca")).toEqual(defaultDesign("Zeca")); // invalid fields -> defaults
     expect(designFor("Tuca")).toEqual(defaultDesign("Tuca")); // never saved -> defaults
   });
 
   it("no localStorage: in-memory design still works, setDesign reports false, nothing throws", () => {
-    expect(setDesign("player", { base: "ghost", color: "#00ffff", silhueta: false })).toBe(false);
-    expect(designFor("player")).toEqual({ base: "ghost", color: "#00ffff", silhueta: false });
+    expect(setDesign("player", { base: "ghost", color: "#00ffff", silhueta: false, dx: 0.2, dy: 0.1 })).toBe(false);
+    expect(designFor("player")).toEqual({ base: "ghost", color: "#00ffff", silhueta: false, dx: 0.2, dy: 0.1 });
     restoreCharDesigns(); // must be a safe no-op
     clearDesign("player");
     expect(designFor("player")).toEqual(defaultDesign("player"));
